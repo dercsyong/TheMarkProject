@@ -146,28 +146,44 @@ class theMark {
 				
 				$print = "{{{#!folding ".$openTag;
 				$original = "{{{#!folding".$openTag."\n";
-				foreach($explode as $value){
-					$count += count(explode('{{{', $value))-1;
-					$count -= count(explode('}}}', $value))-1;
-					if($count<1){
-						$countEnd?$count = $countEnd+1:$count = 0;
-						$hash = md5(date().rand(1,99999));
-						$print .= "\n".str_replace($hash, '}}}', preg_replace('/(}){3}/', '#!end}}}', preg_replace('/(}){3}/', $hash, $value, $count), 1));
-						$original .= str_replace($hash, '}}}', preg_replace('/(}){3}/', '#!this}}}', preg_replace('/(}){3}/', $hash, $value, $count), 1))."\n";
-						break;
-					} else {
-						$print .= "\n".$value;
-						$original .= $value."\n";
+				if(count(explode('#!end}}}', implode("\n", $explode)))>1){
+					$print .= "\n".implode("\n", $explode);
+					$original .= implode("\n", $explode);
+					$hash = md5(date().rand(1,99999));
+					$print = substr($print, 0, strpos($print, '#!end}}}')+8);
+					$original = substr($original, 0, strpos($original, '#!end}}}')+8);
+					$this->FOLDINGDATA[$hash] = $print;
+					$this->whtml = str_replace($original, $hash, $this->whtml);
+					$tableFoldingParser = explode('{{{#!folding', $this->whtml);
+					array_shift($tableFoldingParser);
+					$count = 1;
+				} else {
+					foreach($explode as $value){
+						$count += count(explode('{{{', $value))-1;
+						$count -= count(explode('}}}', $value))-1;
+						if($count<1){
+							$countEnd?$count = $countEnd+1:$count = 0;
+							$hash = md5(date().rand(1,99999));
+							$print .= "\n".str_replace($hash, '}}}', preg_replace('/(}){3}/', '#!end}}}', preg_replace('/(}){3}/', $hash, $value, $count), 1));
+							$original .= str_replace($hash, '}}}', preg_replace('/(}){3}/', '#!this}}}', preg_replace('/(}){3}/', $hash, $value, $count), 1))."\n";
+							break;
+						} else {
+							$print .= "\n".$value;
+							$original .= $value."\n";
+						}
 					}
+					
+					$original = trim($original);
+					$original = str_replace('#!this}}}', '}}}', substr($original, 0, strpos($original, '#!this}}}')+9));
+					$print = substr($print, 0, strpos($print, '#!end}}}')+8);
+					$hash = md5(date().rand(1,99999));
+					$this->FOLDINGDATA[$hash] = $print;
+					$this->whtml = str_replace($original, $hash, $this->whtml);
+					$tableFoldingParser = explode('{{{#!folding', $this->whtml);
+					array_shift($tableFoldingParser);
+					$count = 1;
 				}
 			}
-			$print = str_replace('#!end}}}#!end}}}', '#!end}}}', $print);
-			$original = trim($original);
-			$original = str_replace('#!this}}}', '}}}', substr($original, 0, strpos($original, '#!this}}}')+9));
-			$print = substr($print, 0, strpos($print, '#!end}}}')+8);
-			$hash = md5(date().rand(1,99999));
-			$this->FOLDINGDATA[$hash] = $print;
-			$this->whtml = str_replace($original, $hash, $this->whtml);
 		}
 		$this->whtml = $this->htmlScan($this->whtml);
 		foreach($this->FOLDINGDATA as $hash=>$data){
@@ -290,6 +306,8 @@ class theMark {
 									if(preg_match('/^[0-9]+$/', $pr[2]))
 										$csstxt .= 'width: '.$pr[2].'px; ';
 									else
+										if(reset(explode('%', $pr[2]))>100)
+											$pr[2] = '100%';
 										$csstxt .= 'width: '.$pr[2].'; ';
 									break;
 								case 'height':
@@ -327,6 +345,8 @@ class theMark {
 								if(preg_match('/^[0-9]+$/', $pr[2]))
 									$csstxt .= 'width: '.$pr[2].'px; ';
 								else
+									if(reset(explode('%', $pr[2]))>100)
+										$pr[2] = '100%';
 									$csstxt .= 'width: '.$pr[2].'; ';
 								break;
 							case 'height':
@@ -345,7 +365,7 @@ class theMark {
 				}
 				$paramtxt .= ($csstxt!=''?' style="'.$csstxt.'"':'');
 				
-				return self::getImage($href[1], $paramtxt);
+				return '<a href="'.$href[0].'" class="wiki-link-internal" target="_blank">'.self::getImage($href[1], $paramtxt).'</a>';
 			}
 			
 			$targetUrl = $href[0];
@@ -379,6 +399,8 @@ class theMark {
 								if(preg_match('/^[0-9]+$/', $pr[2]))
 									$csstxt .= 'width: '.$pr[2].'px; ';
 								else
+									if(reset(explode('%', $pr[2]))>100)
+										$pr[2] = '100%';
 									$csstxt .= 'width: '.$pr[2].'; ';
 								break;
 							case 'height':
@@ -397,7 +419,6 @@ class theMark {
 				}
 			}
 			$paramtxt .= ($csstxt!=''?' style="'.$csstxt.'"':'');
-			
 			return self::getImage($href[0], $paramtxt);
 		}
 		else {
@@ -416,6 +437,8 @@ class theMark {
 								if(preg_match('/^[0-9]+$/', $pr[2]))
 									$csstxt .= 'width: '.$pr[2].'px; ';
 								else
+									if(reset(explode('%', $pr[2]))>100)
+										$pr[2] = '100%';
 									$csstxt .= 'width: '.$pr[2].'; ';
 								break;
 							case 'height':
@@ -591,11 +614,11 @@ class theMark {
 		$len = strlen($text);
 		$table = new HTMLElement('table');
 		$table->attributes['class'] = 'wiki-table';
+		$table->style['overflow'] = 'hidden';
 		
 		if(!self::startsWith($text, '||', $offset)) {
 			$caption = new HTMLElement('caption');
 			$dummy=0;
-			$t = $this->workEnd;
 			$caption->innerHTML = $this->bracketParser($text, $offset, array('open' => '|','close' => '|','multiline' => true, 'strict' => false,'processor' => function($str) { return $this->formatParser($str); }));
 			$table->innerHTML .= $caption->toString();
 			$offset++;
@@ -1204,8 +1227,9 @@ class theMark {
 	
 	private static function getImage($fileName, $paramtxt) {
 		$_POST = array('w'=>$fileName);
+		define('MODEINCLUDE', true);
 		include $_SERVER['DOCUMENT_ROOT'].'/API.php';
-		$result = json_decode($API_RETURN);
+		$result = json_decode(json_encode($API_RETURN));
 		
 		if($result->status=='success'){
 			return '<img src="'.$result->link.'"'.(!empty($paramtxt)?$paramtxt:'').'>';
