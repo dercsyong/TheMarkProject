@@ -462,7 +462,7 @@ class theMark {
 				}
 				$paramtxt .= ($csstxt!=''?' style="'.$csstxt.'"':'');
 				
-				return self::getImage($href[1], $paramtxt);
+				return '<a href="/w/'.$href[0].'" class="wiki-link-internal" target="_self">'.self::getImage($href[1], $paramtxt).'</a>';
 			}
 			if(self::startsWith($href[0], ':')) {
 				$href[0] = substr($href[0], 1);
@@ -609,7 +609,10 @@ class theMark {
 		$result = '<'.($tag=='indent'?'div class="indent"':$tag.($start!=1?' start="'.$start.'"':'')).'>';
 		foreach($arr as $li) {
 			$text = $this->blockParser($li['text']).$this->boxDraw($li['childNodes']);
-			$result .= $tag=='indent'?$this->formatParser($text):'<li>'.$this->formatParser($text).'</li>';
+			$t = $this->workEnd;
+			$this->workEnd = false;
+			$result .= $tag=='indent'?$this->htmlScan($text):'<li>'.$this->formatParser($text).'</li>';
+			$this->workEnd = $t;
 		}
 		$result .= '</'.($tag=='indent'?'div':$tag).'>';
 		return $result;
@@ -881,10 +884,6 @@ class theMark {
 		$macroName = strtolower($text);
 		if(!empty($this->macro_processors[$macroName]))
 			return $this->macro_processors[$macroName]();
-		if(!$wiki_db){
-			define('THEWIKI', true);
-			include $_SERVER['DOCUMENT_ROOT'].'/config.php';
-		}
 		switch($macroName) {
 			case 'br': return '<br>';
 			case 'date': case 'datetime': return date('Y-m-d H:i:s');
@@ -1032,7 +1031,7 @@ class theMark {
 					$preview2 = strip_tags($preview, '<img>');
 					$preview = strip_tags($preview);
 					$preview = str_replace('"', '\\"', $preview);
-					return '<script type="text/javascript"> $(document).ready(function(){ $("#rfn-'.htmlspecialchars($id).'").bind("contextmenu",function(e){ $("#Modalrfn-'.htmlspecialchars($id).'").attr("style", "display: block;"); return false; }); $("#Modalrfn-'.htmlspecialchars($id).'").on("click", function(){ $("#Modalrfn-'.htmlspecialchars($id).'").attr("style", "display: none;"); }); $("#rfn-'.htmlspecialchars($id).'").bind("touchend", function(){ $("#Modalrfn-'.htmlspecialchars($id).'").attr("style", "display: block;"); }); $("#Modalrfn-'.htmlspecialchars($id).'").bind("touchstart", function(){ $("#Modalrfn-'.htmlspecialchars($id).'").attr("style", "display: none;"); }); }); </script><a id="rfn-'.htmlspecialchars($id).'" class="wiki-fn-content" href="#fn-'.rawurlencode($id).'" title="'.$preview.'">['.($note[1]?$note[1]:$id).']</a><div class="modal in" id="Modalrfn-'.htmlspecialchars($id).'" style="display: none;"><div class="modal-dialog" role="document"><div class="modal-content" style="overflow:hidden;"><div class="modal-body"> '.str_replace('<img', '<img style="max-width:100%;"', $preview2).'</div></div></div></div>';
+					return '<script type="text/javascript"> $(document).ready(function(){ $("#rfn-'.str_replace('%', '', rawurlencode(htmlspecialchars($id))).'").bind("contextmenu",function(e){ $("#Modalrfn-'.str_replace('%', '', rawurlencode(htmlspecialchars($id))).'").attr("style", "display: block;"); return false; }); $("#Modalrfn-'.str_replace('%', '', rawurlencode(htmlspecialchars($id))).'").on("click", function(){ $("#Modalrfn-'.str_replace('%', '', rawurlencode(htmlspecialchars($id))).'").attr("style", "display: none;"); }); $("#rfn-'.str_replace('%', '', rawurlencode(htmlspecialchars($id))).'").bind("touchend", function(){ $("#Modalrfn-'.str_replace('%', '', rawurlencode(htmlspecialchars($id))).'").attr("style", "display: block;"); }); $("#Modalrfn-'.str_replace('%', '', rawurlencode(htmlspecialchars($id))).'").bind("touchstart", function(){ $("#Modalrfn-'.str_replace('%', '', rawurlencode(htmlspecialchars($id))).'").attr("style", "display: none;"); }); }); </script><a id="rfn-'.str_replace('%', '', rawurlencode(htmlspecialchars($id))).'" class="wiki-fn-content" href="#fn-'.rawurlencode($id).'" title="'.$preview.'">['.($note[1]?$note[1]:$id).']</a><div class="modal in" id="Modalrfn-'.str_replace('%', '', rawurlencode(htmlspecialchars($id))).'" style="display: none;"><div class="modal-dialog" role="document"><div class="modal-content" style="overflow:hidden;"><div class="modal-body"> '.str_replace('<img', '<img style="max-width:100%;"', $preview2).'</div></div></div></div>';
 				}
 		}
 		return '['.$text.']';
