@@ -298,7 +298,7 @@ class theMark {
 				if(!empty($href[1])) {
 					preg_match_all('/[&?]?([^=]+)=([^\&]+)/', htmlspecialchars_decode($href[1]), $param, PREG_SET_ORDER);
 					if(empty($param)){
-						return '<a href="'.$match[1].'" class="wiki-link-external" target="_blank">'.$this->formatParser($href[1]).'</a>';
+						return $href[1];
 					} else {
 						foreach($param as $pr) {
 							switch($pr[1]) {
@@ -370,7 +370,7 @@ class theMark {
 				}
 				$paramtxt .= ($csstxt!=''?' style="'.$csstxt.'"':'');
 				
-				return '<a href="'.$href[0].'" class="wiki-link-internal" target="_blank">'.self::getImage($href[1], $paramtxt).$this->formatParser($extra).'</a>';
+				return '<a href="'.$href[0].'" class="wiki-link-internal" target="_blank">'.self::getImage(str_replace(array('[', ']'), '', $href[1]), $paramtxt).$this->formatParser($extra).'</a>';
 			}
 			
 			$targetUrl = $href[0];
