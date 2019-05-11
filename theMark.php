@@ -134,16 +134,13 @@ class theMark {
 		$this->whtml = htmlspecialchars(@$this->WikiPage);
 		if(count(explode('{{{#!folding', $this->whtml))>1){
 			$tableFoldingParser = explode('{{{#!folding', $this->whtml);
-			$count = count(explode('{{{', $tableFoldingParser[0]));
-			$count -= count(explode('}}}', $tableFoldingParser[0]))-1;
-			$countEnd = $count-1;
 			array_shift($tableFoldingParser);
 			
 			foreach($tableFoldingParser as $chkFoldingLine){
 				$explode = explode("\n", $chkFoldingLine);
 				$openTag = $explode[0];
 				array_shift($explode);
-				
+				$count = 1;
 				$print = "{{{#!folding ".$openTag;
 				$original = "{{{#!folding".$openTag."\n";
 				if(count(explode('#!end}}}', implode("\n", $explode)))>1){
@@ -156,16 +153,26 @@ class theMark {
 					$this->whtml = str_replace($original, $hash, $this->whtml);
 					$tableFoldingParser = explode('{{{#!folding', $this->whtml);
 					array_shift($tableFoldingParser);
-					$count = 1;
 				} else {
 					foreach($explode as $value){
+						$t_count = $count;
 						$count += count(explode('{{{', $value))-1;
+						$p_count = $t_count-$count;
 						$count -= count(explode('}}}', $value))-1;
+						if($p_count<0&&$t_count!=$count){
+							$precount++;
+						} else if($p_count>=0&&$t_count!=$count){
+							$precount--;
+						}
 						if($count<1){
-							$countEnd?$count = $countEnd+1:$count = 0;
+							if(strpos($value, '{{{')){
+								if(!strpos(substr($value, strpos($value, '{{{')), '}}}')){
+									$precount = count(explode('}}}', substr($value, strpos($value, '{{{'))));
+								}
+							} 
 							$hash = md5(date().rand(1,99999));
-							$print .= "\n".str_replace($hash, '}}}', preg_replace('/(}){3}/', '#!end}}}', preg_replace('/(}){3}/', $hash, $value, $count), 1));
-							$original .= str_replace($hash, '}}}', preg_replace('/(}){3}/', '#!this}}}', preg_replace('/(}){3}/', $hash, $value, $count), 1))."\n";
+							$print .= "\n".str_replace($hash, '}}}', preg_replace('/(}){3}/', '#!end}}}', preg_replace('/(}){3}/', $hash, $value, $precount), 1));
+							$original .= str_replace($hash, '}}}', preg_replace('/(}){3}/', '#!this}}}', preg_replace('/(}){3}/', $hash, $value, $precount), 1))."\n";
 							break;
 						} else {
 							$print .= "\n".$value;
@@ -181,7 +188,6 @@ class theMark {
 					$this->whtml = str_replace($original, $hash, $this->whtml);
 					$tableFoldingParser = explode('{{{#!folding', $this->whtml);
 					array_shift($tableFoldingParser);
-					$count = 1;
 				}
 			}
 		}
@@ -308,12 +314,14 @@ class theMark {
 									else
 										if(reset(explode('%', $pr[2]))>100)
 											$pr[2] = '100%';
+										is_numeric($pr[2])?$pr[2].'px':$pr[2];
 										$csstxt .= 'width: '.$pr[2].'; ';
 									break;
 								case 'height':
 									if(preg_match('/^[0-9]+$/', $pr[2]))
 										$csstxt .= 'height: '.$pr[2].'px; ';
 									else
+										is_numeric($pr[2])?$pr[2].'px':$pr[2];
 										$csstxt .= 'height: '.$pr[2].'; ';
 									break;
 								case 'align':
@@ -352,12 +360,14 @@ class theMark {
 								else
 									if(reset(explode('%', $pr[2]))>100)
 										$pr[2] = '100%';
+									is_numeric($pr[2])?$pr[2].'px':$pr[2];
 									$csstxt .= 'width: '.$pr[2].'; ';
 								break;
 							case 'height':
 								if(preg_match('/^[0-9]+$/', $pr[2]))
 									$csstxt .= 'height: '.$pr[2].'px; ';
 								else
+									is_numeric($pr[2])?$pr[2].'px':$pr[2];
 									$csstxt .= 'height: '.$pr[2].'; ';
 								break;
 							case 'align':
@@ -406,12 +416,14 @@ class theMark {
 								else
 									if(reset(explode('%', $pr[2]))>100)
 										$pr[2] = '100%';
+									is_numeric($pr[2])?$pr[2].'px':$pr[2];
 									$csstxt .= 'width: '.$pr[2].'; ';
 								break;
 							case 'height':
 								if(preg_match('/^[0-9]+$/', $pr[2]))
 									$csstxt .= 'height: '.$pr[2].'px; ';
 								else
+									is_numeric($pr[2])?$pr[2].'px':$pr[2];
 									$csstxt .= 'height: '.$pr[2].'; ';
 								break;
 							case 'align':
@@ -444,12 +456,14 @@ class theMark {
 								else
 									if(reset(explode('%', $pr[2]))>100)
 										$pr[2] = '100%';
+									is_numeric($pr[2])?$pr[2].'px':$pr[2];
 									$csstxt .= 'width: '.$pr[2].'; ';
 								break;
 							case 'height':
 								if(preg_match('/^[0-9]+$/', $pr[2]))
 									$csstxt .= 'height: '.$pr[2].'px; ';
 								else
+									is_numeric($pr[2])?$pr[2].'px':$pr[2];
 									$csstxt .= 'height: '.$pr[2].'; ';
 								break;
 							case 'align':
@@ -682,7 +696,7 @@ class theMark {
 											break;
 										case 'bgcolor': $table->style['background-color'] = $tbprop[2]; break;
 										case 'bordercolor': $table->style['border-color'] = $tbprop[2]; $table->style['border-style'] = 'solid'; break;
-										case 'width': case 'tablewidth': $table->style['width'] = $tbprop[2]; break;
+										case 'width': case 'tablewidth': $table->style['width'] = is_numeric($tbprop[2])?$tbprop[2].'px':$tbprop[2]; break;
 									}
 								}
 							} elseif(preg_match('/^(\||\-)([0-9]+)$/', $prop, $span)) {
@@ -729,11 +743,21 @@ class theMark {
 					if(count(explode('{{{', $fullLine))-1==count(explode('{{{#!wiki', $fullLine))-1){
 						$fullLine = str_replace('}}}', '', $fullLine);
 						$explode = explode("\n", $fullLine);
-						$fullLine = '<div'.htmlspecialchars_decode(substr($explode[0], 10)).'>';
-						array_shift($explode);
+						foreach($explode as $searchWiki){
+							if(trim(substr($searchWiki, 0, 10))=="{{{#!wiki"){
+								$thisline .= '<div '.htmlspecialchars_decode(substr($searchWiki, 10)).'>';
+								$thislinecnt++;
+							} else {
+								$thisline .= $searchWiki;
+							}
+						}
 						$t = $this->workEnd;
 						$this->workEnd = false;
-						$fullLine .= $this->htmlScan(implode("\n", $explode)).'</div>';
+						$fullLine = $this->htmlScan($thisline);
+						while($thislinecnt>0){
+							$fullLine .= '</div>';
+							$thislinecnt--;
+						}
 						$this->workEnd = $t;
 						$td->innerHTML .= $fullLine;
 					} else {
@@ -756,6 +780,8 @@ class theMark {
 					$print = null;
 					$style = null;
 					$count = null;
+					$thisline = null;
+					$thislinecnt = null;
 				}
 				
 				foreach($lines as $line) {
@@ -842,12 +868,14 @@ class theMark {
 									if(preg_match('/^[0-9]+$/', $pr[2]))
 										$csstxt .= 'width: '.$pr[2].'px; ';
 									else
+										is_numeric($pr[2])?$pr[2].'px':$pr[2];
 										$csstxt .= 'width: '.$pr[2].'; ';
 									break;
 								case 'height':
 									if(preg_match('/^[0-9]+$/', $pr[2]))
 										$csstxt .= 'height: '.$pr[2].'px; ';
 									else
+										is_numeric($pr[2])?$pr[2].'px':$pr[2];
 										$csstxt .= 'height: '.$pr[2].'; ';
 									break;
 								case 'align':
@@ -943,7 +971,7 @@ class theMark {
 						unset($api_result);
 					}
 					
-					if(defined("isdeleted")){
+					if(defined('isdeleted')&&$arr['text']==' '){
 						return ' ';
 					}
 					
@@ -952,7 +980,7 @@ class theMark {
 							$var = explode('=', ltrim($var));
 							if(empty($var[1]))
 								$var[1]='';
-							$arr['text'] = str_replace('@'.$var[0].'@', $var[1], $arr['text']);
+							$arr['text'] = str_replace('@'.$var[0].'@', strip_tags(htmlspecialchars_decode($var[1]), '<b>'), $arr['text']);
 						}
 						
 						$child = new theMark($arr['text']);
@@ -1022,7 +1050,11 @@ class theMark {
 							break;
 						default: $row['result'] = ' 0'; break;
 					}
-					return $row['result'];
+					return number_format($row['result']);
+				}
+				elseif(self::startsWithi(strtolower($text), 'ruby') && preg_match('/^ruby\((.+)\)$/i', $text, $include) && $include = $include[1]) {
+					$include = explode(',', $include);
+					return '<ruby><rb>'.$include[0].'</rb><rp>(</rp><rt>'.substr(ltrim($include[1]), 5).'</rt></ruby>';
 				}
 				elseif(self::startsWith($text, '*') && preg_match('/^\*([^ ]*)([ ].+)?$/', $text, $note)) {
 					$notetext = !empty($note[2])?$this->formatParser($note[2]):'';
@@ -1070,7 +1102,7 @@ class theMark {
 				return $text;
 			return '<span style="color: '.(empty($color[1])?$color[2]:'#'.$color[1]).'">'.$this->formatParser(str_replace("\n", "<br>", $color[3])).'</span>';
 		}
-		return '<pre><code>'.$text.'</code></pre>';
+		return '<pre><code>'.trim(htmlspecialchars_decode($text)).'</code></pre>';
 	}
 	
 	private function foldingProcessor($text, $type) {
@@ -1087,7 +1119,7 @@ class theMark {
 			case '\'\'': return '<em>'.$this->formatParser($text).'</em>';
 			case '--': case '~~': if($this->strikeLine){ return ' '; } return '<del>'.$this->formatParser($text).'</del>';
 			case '__': return '<u>'.$this->formatParser($text).'</u>';
-			case '^^': return '<sup>'.$this->formatParser($text).'</sup>';
+			case '^^': return '<sup style="top: 0.4em">'.$this->formatParser($text).'</sup>';
 			case ',,': return '<sub>'.$this->formatParser($text).'</sub>';
 		}
 		return $type.$text.$type;
@@ -1236,7 +1268,7 @@ class theMark {
 		$result = json_decode(json_encode($API_RETURN));
 		
 		if($result->status=='success'){
-			return '<img src="'.$result->link.'"'.(!empty($paramtxt)?$paramtxt:'').'>';
+			return '<img src="'.$result->link.'"'.(!empty($paramtxt)?$paramtxt:'').' alt="'.$fileName.'">';
 		} elseif($result->status=='processing'){
 			return '[ No.'.$result->link.' ] 처리되어 검증중';
 		} elseif($result->status=='fail'){
