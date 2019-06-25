@@ -159,6 +159,7 @@ class theMark {
 						$count += count(explode('{{{', $value))-1;
 						$p_count = $t_count-$count;
 						$count -= count(explode('}}}', $value))-1;
+						$pprecount = $precount;
 						if($p_count<0&&$t_count!=$count){
 							$precount++;
 						} else if($p_count>=0&&$t_count!=$count){
@@ -169,7 +170,9 @@ class theMark {
 								if(!strpos(substr($value, strpos($value, '{{{')), '}}}')){
 									$precount = count(explode('}}}', substr($value, strpos($value, '{{{'))));
 								}
-							} 
+							} else {
+								$precount = $pprecount;
+							}
 							$hash = md5(date().rand(1,99999));
 							$print .= "\n".str_replace($hash, '}}}', preg_replace('/(}){3}/', '#!end}}}', preg_replace('/(}){3}/', $hash, $value, $precount), 1));
 							$original .= str_replace($hash, '}}}', preg_replace('/(}){3}/', '#!this}}}', preg_replace('/(}){3}/', $hash, $value, $precount), 1))."\n";
@@ -1037,7 +1040,7 @@ class theMark {
 							$res = mysqli_query($wiki_db, $sql);
 							$row = mysqli_fetch_assoc($res); 
 							if(empty($row['result'])){
-								$row['result'] = ' 0';
+								return ' 0';
 							}
 							break;
 						case 'recent':
@@ -1045,10 +1048,10 @@ class theMark {
 							$res = mysqli_query($wiki_db, $sql);
 							$row = mysqli_fetch_array($res); 
 							if(empty($row['result'])){
-								$row['result'] = ' 0';
+								return ' 0';
 							}
 							break;
-						default: $row['result'] = ' 0'; break;
+						default: return ' 0';
 					}
 					return number_format($row['result']);
 				}
