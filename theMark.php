@@ -128,6 +128,7 @@ class theMark {
 		$this->included = false;
 		$this->redirect = true;
 		$this->workEnd = true;
+		$this->alltext = false;
 	}
 	
 	public function toHtml() {
@@ -135,71 +136,75 @@ class theMark {
 		if(count(explode('{{{#!folding', $this->whtml))>1){
 			$tableFoldingParser = explode('{{{#!folding', $this->whtml);
 			array_shift($tableFoldingParser);
-			
-			foreach($tableFoldingParser as $chkFoldingLine){
-				$explode = explode("\n", $chkFoldingLine);
-				$openTag = $explode[0];
-				array_shift($explode);
-				$count = 1;
-				$print = "{{{#!folding ".$openTag;
-				$original = "{{{#!folding".$openTag."\n";
-				if(count(explode('#!end}}}', implode("\n", $explode)))>1){
-					$print .= "\n".implode("\n", $explode);
-					$original .= implode("\n", $explode);
-					$hash = md5(date().rand(1,99999));
-					$print = substr($print, 0, strpos($print, '#!end}}}')+8);
-					$original = substr($original, 0, strpos($original, '#!end}}}')+8);
-					$this->FOLDINGDATA[$hash] = $print;
-					$this->whtml = str_replace($original, $hash, $this->whtml);
-					$tableFoldingParser = explode('{{{#!folding', $this->whtml);
-					array_shift($tableFoldingParser);
-				} else {
-					foreach($explode as $value){
-						$t_count = $count;
-						$count += count(explode('{{{', $value))-1;
-						$p_count = $t_count-$count;
-						$count -= count(explode('}}}', $value))-1;
-						$pprecount = $precount;
-						if($p_count<0&&$t_count!=$count){
-							$precount++;
-						} else if($p_count>=0&&$t_count!=$count){
-							$precount--;
-						}
-						if($count<1){
-							if(strpos($value, '{{{')){
-								if(!strpos(substr($value, strpos($value, '{{{')), '}}}')){
-									$precount = count(explode('}}}', substr($value, strpos($value, '{{{'))));
+			if(!empty($tableFoldingParser)){
+				foreach($tableFoldingParser as $chkFoldingLine){
+					$explode = explode("\n", $chkFoldingLine);
+					$openTag = $explode[0];
+					array_shift($explode);
+					$count = 1;
+					$print = "{{{#!folding ".$openTag;
+					$original = "{{{#!folding".$openTag."\n";
+					if(count(explode('#!end}}}', implode("\n", $explode)))>1){
+						$print .= "\n".implode("\n", $explode);
+						$original .= implode("\n", $explode);
+						$hash = md5($date.rand(1,99999));
+						$print = substr($print, 0, strpos($print, '#!end}}}')+8);
+						$original = substr($original, 0, strpos($original, '#!end}}}')+8);
+						$this->FOLDINGDATA[$hash] = $print;
+						$this->whtml = str_replace($original, $hash, $this->whtml);
+						$tableFoldingParser = explode('{{{#!folding', $this->whtml);
+						array_shift($tableFoldingParser);
+					} else {
+						if(!empty($explode)){
+							foreach($explode as $value){
+								$t_count = $count;
+								$count += count(explode('{{{', $value))-1;
+								$p_count = $t_count-$count;
+								$count -= count(explode('}}}', $value))-1;
+								$pprecount = $precount;
+								if($p_count<0&&$t_count!=$count){
+									$precount++;
+								} else if($p_count>=0&&$t_count!=$count){
+									$precount--;
 								}
-							} else {
-								$precount = $pprecount;
+								if($count<1){
+									if(strpos($value, '{{{')){
+										if(!strpos(substr($value, strpos($value, '{{{')), '}}}')){
+											$precount = count(explode('}}}', substr($value, strpos($value, '{{{'))));
+										}
+									} else {
+										$precount = $pprecount;
+									}
+									$hash = md5($date.rand(1,99999));
+									$print .= "\n".str_replace($hash, '}}}', preg_replace('/(}){3}/', '#!end}}}', preg_replace('/(}){3}/', $hash, $value, $precount), 1));
+									$original .= str_replace($hash, '}}}', preg_replace('/(}){3}/', '#!this}}}', preg_replace('/(}){3}/', $hash, $value, $precount), 1))."\n";
+									break;
+								} else {
+									$print .= "\n".$value;
+									$original .= $value."\n";
+								}
 							}
-							$hash = md5(date().rand(1,99999));
-							$print .= "\n".str_replace($hash, '}}}', preg_replace('/(}){3}/', '#!end}}}', preg_replace('/(}){3}/', $hash, $value, $precount), 1));
-							$original .= str_replace($hash, '}}}', preg_replace('/(}){3}/', '#!this}}}', preg_replace('/(}){3}/', $hash, $value, $precount), 1))."\n";
-							break;
-						} else {
-							$print .= "\n".$value;
-							$original .= $value."\n";
 						}
+						$original = trim($original);
+						$original = str_replace('#!this}}}', '}}}', substr($original, 0, strpos($original, '#!this}}}')+9));
+						$print = substr($print, 0, strpos($print, '#!end}}}')+8);
+						$hash = md5($date.rand(1,99999));
+						$this->FOLDINGDATA[$hash] = $print;
+						$this->whtml = str_replace($original, $hash, $this->whtml);
+						$tableFoldingParser = explode('{{{#!folding', $this->whtml);
+						array_shift($tableFoldingParser);
 					}
-					
-					$original = trim($original);
-					$original = str_replace('#!this}}}', '}}}', substr($original, 0, strpos($original, '#!this}}}')+9));
-					$print = substr($print, 0, strpos($print, '#!end}}}')+8);
-					$hash = md5(date().rand(1,99999));
-					$this->FOLDINGDATA[$hash] = $print;
-					$this->whtml = str_replace($original, $hash, $this->whtml);
-					$tableFoldingParser = explode('{{{#!folding', $this->whtml);
-					array_shift($tableFoldingParser);
 				}
 			}
 		}
 		$this->whtml = $this->htmlScan($this->whtml);
-		foreach($this->FOLDINGDATA as $hash=>$data){
-			$inFold = substr($data, 12, strpos($data, '#!end}}}')-12);
-			$this->workEnd = false;
-			$toFolding = $this->foldingProcessor($inFold);
-			$this->whtml = str_replace($hash, $toFolding, $this->whtml);
+		if(!empty($this->FOLDINGDATA)){
+			foreach($this->FOLDINGDATA as $hash=>$data){
+				$inFold = substr($data, 12, strpos($data, '#!end}}}')-12);
+				$this->workEnd = false;
+				$toFolding = $this->foldingProcessor($inFold, '');
+				$this->whtml = str_replace($hash, $toFolding, $this->whtml);
+			}
 		}
 		$this->whtml = str_replace('<a href="/w/'.str_replace(array('%3A', '%2F', '%23', '%28', '%29'), array(':', '/', '#', '(', ')'), rawurlencode($_GET['w'])).'"', '<a style="font-weight:bold;" href="/w/'.str_replace(array('%3A', '%2F', '%23', '%28', '%29'), array(':', '/', '#', '(', ')'), rawurlencode($_GET['w'])).'"', $this->whtml);
 		$this->whtml = str_replace(array('onerror=', 'onload=', '&lt;math&gt;', '&lt;/math&gt;', '<math>', '</math>'), array('', '', '$$', '$$', '$$', '$$'), $this->whtml);
@@ -216,7 +221,7 @@ class theMark {
 				return '#redirect '.$target[1];
 			}
 			if(str_replace('https://'.$_SERVER['HTTP_HOST'].'/w/', '', $_SERVER['HTTP_REFERER'])==str_replace("+", "%20", urlencode($target[1]))){
-				return '흐음, 잠시만요. <b>같은 문서끼리 리다이렉트 되고 있는 것 같습니다!</b><br>다음 문서중 하나를 수정하여 문제를 해결할 수 있습니다.<hr><a href="/history/'.self::encodeURI($target[1]).'" target="_blank">'.$target[1].'</a><br><a href="/history/'.str_replace("+", "%20", urlencode($_GET['w'])).'" target="_blank">'.$_GET['w'].'</a><hr>문서를 수정했는데 같은 문제가 계속 발생하나요? <a href="'.self::encodeURI($target[1]).'"><b>여기</b></a>를 확인해보세요!';
+				return '흐음, 잠시만요. <b>같은 문서끼리 리다이렉트 되고 있는 것 같습니다!</b><br>다음 문서중 하나를 수정하여 문제를 해결할 수 있습니다.<hr><a href="/history/'.self::encodeURI($target[1]).'" target="_blank">'.$target[1].'</a><br><a href="/history/'.rawurlencode($THEWIKI_NOW_TITLE_FULL).'" target="_blank">'.$THEWIKI_NOW_TITLE_FULL.'</a><hr>문서를 수정했는데 같은 문제가 계속 발생하나요? <a href="'.self::encodeURI($target[1]).'"><b>여기</b></a>를 확인해보세요!';
 			} else {
 				return 'Redirection...'.$target[1].'<script> location.href = "/w/'.self::encodeURI($target[1]).'"; </script>';
 			}
@@ -248,15 +253,17 @@ class theMark {
 				$now = '';
 				continue;
 			}
-			foreach($this->multi_bracket as $bracket) {
-				if(self::startsWith($text, $bracket['open'], $i) && $innerstr = $this->bracketParser($text, $i, $bracket)) {
-					$result .= ''
-						.$this->lineParser($line)
-						.$innerstr
-						.'';
-					$line = '';
-					$now = '';
-					break;
+			if(!empty($this->multi_bracket)){
+				foreach($this->multi_bracket as $bracket) {
+					if(self::startsWith($text, $bracket['open'], $i) && $innerstr = $this->bracketParser($text, $i, $bracket)) {
+						$result .= ''
+							.$this->lineParser($line)
+							.$innerstr
+							.'';
+						$line = '';
+						$now = '';
+						break;
+					}
 				}
 			}
 			if($now == "\n") {
@@ -273,12 +280,16 @@ class theMark {
 		
 		if(!empty($this->category)&&$this->workEnd) {
 			$result .= '<div class="clearfix"></div><div class="wiki-category"><h2>분류</h2><ul>';
-			foreach($this->category as $category) {
-				$reCategory[] = $category;
+			if(!empty($this->category)){
+				foreach($this->category as $category) {
+					$reCategory[] = $category;
+				}
 			}
 			$reCategory = array_unique($reCategory);
-			foreach($reCategory as $category) {
-				$result .= '<li>'.$this->linkProcessor(':분류:'.$category.'|'.$category, '[[').'</li> ';
+			if(!empty($reCategory)){
+				foreach($reCategory as $category) {
+					$result .= '<li>'.$this->linkProcessor(':분류:'.$category.'|'.$category, '[[').'</li> ';
+				}
 			}
 			$result .= '</div>';
 		}
@@ -309,6 +320,55 @@ class theMark {
 					if(empty($param)){
 						return $href[1];
 					} else {
+						if(!empty($param)){
+							foreach($param as $pr) {
+								switch($pr[1]) {
+									case 'width':
+										if(preg_match('/^[0-9]+$/', $pr[2]))
+											$csstxt .= 'width: '.$pr[2].'px; ';
+										else
+											if(reset(explode('%', $pr[2]))>100)
+												$pr[2] = '100%';
+											is_numeric($pr[2])?$pr[2].'px':$pr[2];
+											$csstxt .= 'width: '.$pr[2].'; ';
+										break;
+									case 'height':
+										if(preg_match('/^[0-9]+$/', $pr[2]))
+											$csstxt .= 'height: '.$pr[2].'px; ';
+										else
+											is_numeric($pr[2])?$pr[2].'px':$pr[2];
+											$csstxt .= 'height: '.$pr[2].'; ';
+										break;
+									case 'align':
+										if($pr[2]!='center')
+											$csstxt .= 'float: '.$pr[2].'; ';
+										break;
+									default: $paramtxt.=' '.$pr[1].'="'.$pr[2].'"';
+								}
+							}
+						}
+					}
+				}
+				$paramtxt .= ($csstxt!=''?' style="'.$csstxt.'"':'');
+				
+				return '<img src="'.$match[1].'"'.$paramtxt.'>';
+			}
+			
+			if(!empty($href[1])&&!empty($href[2])){
+				$paramtxt = '';
+				$csstxt = '';
+				$href[1] = substr($href[1], 2);
+				if(substr($href[2], -2)==']]'){
+					$href[2] = substr($href[2], 0, -2);
+				} else {
+					$extra = substr($href[2], strpos($href[2], ']]')+2);
+					$href[2] = substr($href[2], 0, strpos($href[2], ']]'));
+				}
+				preg_match_all('/[&?]?([^=]+)=([^\&]+)/', htmlspecialchars_decode($href[2]), $param, PREG_SET_ORDER);
+				if(empty($param)){
+					return ' ';
+				} else {
+					if(!empty($param)){
 						foreach($param as $pr) {
 							switch($pr[1]) {
 								case 'width':
@@ -333,51 +393,6 @@ class theMark {
 									break;
 								default: $paramtxt.=' '.$pr[1].'="'.$pr[2].'"';
 							}
-						}
-					}
-				}
-				$paramtxt .= ($csstxt!=''?' style="'.$csstxt.'"':'');
-				
-				return '<img src="'.$match[1].'"'.$paramtxt.'>';
-			}
-			
-			if(!empty($href[1])&&!empty($href[2])){
-				$paramtxt = '';
-				$csstxt = '';
-				$href[1] = substr($href[1], 2);
-				if(substr($href[2], -2)==']]'){
-					$href[2] = substr($href[2], 0, -2);
-				} else {
-					$extra = substr($href[2], strpos($href[2], ']]')+2);
-					$href[2] = substr($href[2], 0, strpos($href[2], ']]'));
-				}
-				preg_match_all('/[&?]?([^=]+)=([^\&]+)/', htmlspecialchars_decode($href[2]), $param, PREG_SET_ORDER);
-				if(empty($param)){
-					return ' ';
-				} else {
-					foreach($param as $pr) {
-						switch($pr[1]) {
-							case 'width':
-								if(preg_match('/^[0-9]+$/', $pr[2]))
-									$csstxt .= 'width: '.$pr[2].'px; ';
-								else
-									if(reset(explode('%', $pr[2]))>100)
-										$pr[2] = '100%';
-									is_numeric($pr[2])?$pr[2].'px':$pr[2];
-									$csstxt .= 'width: '.$pr[2].'; ';
-								break;
-							case 'height':
-								if(preg_match('/^[0-9]+$/', $pr[2]))
-									$csstxt .= 'height: '.$pr[2].'px; ';
-								else
-									is_numeric($pr[2])?$pr[2].'px':$pr[2];
-									$csstxt .= 'height: '.$pr[2].'; ';
-								break;
-							case 'align':
-								if($pr[2]!='center')
-									$csstxt .= 'float: '.$pr[2].'; ';
-								break;
-							default: $paramtxt.=' '.$pr[1].'="'.$pr[2].'"';
 						}
 					}
 				}
@@ -411,29 +426,31 @@ class theMark {
 				if(empty($param)){
 					return '<a href="'.$this->prefix.'/'.$category[0].'" class="wiki-link-internal" target="_blank">'.$this->formatParser($href[1]).'</a>';
 				} else {
-					foreach($param as $pr) {
-						switch($pr[1]) {
-							case 'width':
-								if(preg_match('/^[0-9]+$/', $pr[2]))
-									$csstxt .= 'width: '.$pr[2].'px; ';
-								else
-									if(reset(explode('%', $pr[2]))>100)
-										$pr[2] = '100%';
-									is_numeric($pr[2])?$pr[2].'px':$pr[2];
-									$csstxt .= 'width: '.$pr[2].'; ';
-								break;
-							case 'height':
-								if(preg_match('/^[0-9]+$/', $pr[2]))
-									$csstxt .= 'height: '.$pr[2].'px; ';
-								else
-									is_numeric($pr[2])?$pr[2].'px':$pr[2];
-									$csstxt .= 'height: '.$pr[2].'; ';
-								break;
-							case 'align':
-								if($pr[2]!='center')
-									$csstxt .= 'float: '.$pr[2].'; ';
-								break;
-							default: $paramtxt.=' '.$pr[1].'="'.$pr[2].'"';
+					if(!empty($param)){
+						foreach($param as $pr) {
+							switch($pr[1]) {
+								case 'width':
+									if(preg_match('/^[0-9]+$/', $pr[2]))
+										$csstxt .= 'width: '.$pr[2].'px; ';
+									else
+										if(reset(explode('%', $pr[2]))>100)
+											$pr[2] = '100%';
+										is_numeric($pr[2])?$pr[2].'px':$pr[2];
+										$csstxt .= 'width: '.$pr[2].'; ';
+									break;
+								case 'height':
+									if(preg_match('/^[0-9]+$/', $pr[2]))
+										$csstxt .= 'height: '.$pr[2].'px; ';
+									else
+										is_numeric($pr[2])?$pr[2].'px':$pr[2];
+										$csstxt .= 'height: '.$pr[2].'; ';
+									break;
+								case 'align':
+									if($pr[2]!='center')
+										$csstxt .= 'float: '.$pr[2].'; ';
+									break;
+								default: $paramtxt.=' '.$pr[1].'="'.$pr[2].'"';
+							}
 						}
 					}
 				}
@@ -451,29 +468,31 @@ class theMark {
 				if(empty($param)){
 					return ' ';
 				} else {
-					foreach($param as $pr) {
-						switch($pr[1]) {
-							case 'width':
-								if(preg_match('/^[0-9]+$/', $pr[2]))
-									$csstxt .= 'width: '.$pr[2].'px; ';
-								else
-									if(reset(explode('%', $pr[2]))>100)
-										$pr[2] = '100%';
-									is_numeric($pr[2])?$pr[2].'px':$pr[2];
-									$csstxt .= 'width: '.$pr[2].'; ';
-								break;
-							case 'height':
-								if(preg_match('/^[0-9]+$/', $pr[2]))
-									$csstxt .= 'height: '.$pr[2].'px; ';
-								else
-									is_numeric($pr[2])?$pr[2].'px':$pr[2];
-									$csstxt .= 'height: '.$pr[2].'; ';
-								break;
-							case 'align':
-								if($pr[2]!='center')
-									$csstxt .= 'float: '.$pr[2].'; ';
-								break;
-							default: $paramtxt.=' '.$pr[1].'="'.$pr[2].'"';
+					if(!empty($param)){
+						foreach($param as $pr) {
+							switch($pr[1]) {
+								case 'width':
+									if(preg_match('/^[0-9]+$/', $pr[2]))
+										$csstxt .= 'width: '.$pr[2].'px; ';
+									else
+										if(reset(explode('%', $pr[2]))>100)
+											$pr[2] = '100%';
+										is_numeric($pr[2])?$pr[2].'px':$pr[2];
+										$csstxt .= 'width: '.$pr[2].'; ';
+									break;
+								case 'height':
+									if(preg_match('/^[0-9]+$/', $pr[2]))
+										$csstxt .= 'height: '.$pr[2].'px; ';
+									else
+										is_numeric($pr[2])?$pr[2].'px':$pr[2];
+										$csstxt .= 'height: '.$pr[2].'; ';
+									break;
+								case 'align':
+									if($pr[2]!='center')
+										$csstxt .= 'float: '.$pr[2].'; ';
+									break;
+								default: $paramtxt.=' '.$pr[1].'="'.$pr[2].'"';
+							}
 						}
 					}
 				}
@@ -557,21 +576,23 @@ class theMark {
 					break;
 				}
 				$match = false;
-				foreach($this->list_tag as $list_tag) {
-					if(self::startsWith($text, $list_tag[0], $i)) {
-						if(!empty($listTable[0]) && $listTable[0]['tag']=='indent') {
-							$i = $lineStart;
-							$quit = true;
+				if(!empty($this->list_tag)){
+					foreach($this->list_tag as $list_tag) {
+						if(self::startsWith($text, $list_tag[0], $i)) {
+							if(!empty($listTable[0]) && $listTable[0]['tag']=='indent') {
+								$i = $lineStart;
+								$quit = true;
+								break;
+							}
+							$eol = self::seekEndOfLine($text, $lineStart);
+							$tlen = strlen($list_tag[0]);
+							$innerstr = substr($text, $i+$tlen, $eol-($i+$tlen));
+							$this->boxInsert($listTable, $innerstr, ($i-$lineStart), $list_tag[1]);
+							$i = $eol;
+							$now = "\n";
+							$match = true;
 							break;
 						}
-						$eol = self::seekEndOfLine($text, $lineStart);
-						$tlen = strlen($list_tag[0]);
-						$innerstr = substr($text, $i+$tlen, $eol-($i+$tlen));
-						$this->boxInsert($listTable, $innerstr, ($i-$lineStart), $list_tag[1]);
-						$i = $eol;
-						$now = "\n";
-						$match = true;
-						break;
 					}
 				}
 				if($quit)
@@ -624,12 +645,14 @@ class theMark {
 		$tag = $arr[0]['tag'];
 		$start = $arr[0]['start'];
 		$result = '<'.($tag=='indent'?'div class="indent"':$tag.($start!=1?' start="'.$start.'"':'')).'>';
-		foreach($arr as $li) {
-			$text = $this->blockParser($li['text']).$this->boxDraw($li['childNodes']);
-			$t = $this->workEnd;
-			$this->workEnd = false;
-			$result .= $tag=='indent'?$this->htmlScan($text):'<li>'.$this->formatParser($text).'</li>';
-			$this->workEnd = $t;
+		if(!empty($arr)){
+			foreach($arr as $li) {
+				$text = $this->blockParser($li['text']).$this->boxDraw($li['childNodes']);
+				$t = $this->workEnd;
+				$this->workEnd = false;
+				$result .= $tag=='indent'?$this->htmlScan($text):'<li>'.$this->formatParser($text).'</li>';
+				$this->workEnd = $t;
+			}
 		}
 		$result .= '</'.($tag=='indent'?'div':$tag).'>';
 		return $result;
@@ -663,134 +686,143 @@ class theMark {
 			
 			$tr = new HTMLElement('tr');
 			$simpleColspan = 0;
-			foreach($row as $cell) {
-				$td = new HTMLElement('td');
-				$cell = htmlspecialchars_decode($cell);
-				$cell = preg_replace_callback('/<(.+?)>/', function($match) use ($table, $tr, $td) {
-					$prop = $match[1];
-					switch($prop) {
-						case '(': break;
-						case ':': $td->style['text-align'] = 'center'; break;
-						case ')': $td->style['text-align'] = 'right'; break;
-						case 'white': case 'black': case 'gray': case 'red': case 'blue': case 'pink': case 'green': case 'yellow': case 'dimgray': case 'midnightblue': case 'lightskyblue': case 'orange': case 'firebrick': case 'gold': case 'forestgreen': case 'orangered': case 'darkslategray': case 'deepskyblue':
-							$td->style['background-color'] = $prop;
-							break;
-						default:
-							if(self::startsWith($prop, 'table')) {
-								$tbprops = explode(' ', $prop);
-								foreach($tbprops as $tbprop) {
-									if(!preg_match('/^([^=]+)=(?|"(.*)"|\'(.*)\'|(.*))$/', $tbprop, $tbprop))
-										continue;
-									switch($tbprop[1]) {
-										case 'align': case 'tablepadding':
-											$padding = explode(",", $tbprop[2]); 
-											$paddingx = is_numeric($padding[0])?$padding[0].'px':$padding[0];
-											$paddingy = is_numeric($padding[1])?$padding[1].'px':$padding[1];
-											$paddinga = is_numeric($padding[2])?$padding[2].'px':$padding[2];
-											$paddingb = is_numeric($padding[3])?$padding[3].'px':$padding[3];
-											$td->style['padding'] = $paddingx." ".$paddingy." ".$paddinga." ".$paddingb;
-											break;
-										case 'tablealign':
-											switch($tbprop[2]) {
-												case 'left': break;
-												case 'center': $table->style['margin-left'] = 'auto'; $table->style['margin-right'] = 'auto'; break;
-												case 'right': $table->style['float'] = 'right'; $table->attributes['class'].=' float'; break;
+			if(!empty($row)){
+				foreach($row as $cell) {
+					$td = new HTMLElement('td');
+					$cell = htmlspecialchars_decode($cell);
+					$cell = preg_replace_callback('/<(.+?)>/', function($match) use ($table, $tr, $td) {
+						$prop = $match[1];
+						switch($prop) {
+							case '(': break;
+							case ':': $td->style['text-align'] = 'center'; break;
+							case ')': $td->style['text-align'] = 'right'; break;
+							case 'white': case 'black': case 'gray': case 'red': case 'blue': case 'pink': case 'green': case 'yellow': case 'dimgray': case 'midnightblue': case 'lightskyblue': case 'orange': case 'firebrick': case 'gold': case 'forestgreen': case 'orangered': case 'darkslategray': case 'deepskyblue':
+								$td->style['background-color'] = $prop;
+								break;
+							default:
+								if(self::startsWith($prop, 'table')) {
+									$tbprops = explode(' ', $prop);
+									if(!empty($tbprops)){
+										foreach($tbprops as $tbprop) {
+											if(!preg_match('/^([^=]+)=(?|"(.*)"|\'(.*)\'|(.*))$/', $tbprop, $tbprop))
+												continue;
+											switch($tbprop[1]) {
+												case 'align': case 'tablepadding':
+													$padding = explode(",", $tbprop[2]); 
+													$paddingx = is_numeric($padding[0])?$padding[0].'px':$padding[0];
+													$paddingy = is_numeric($padding[1])?$padding[1].'px':$padding[1];
+													$paddinga = is_numeric($padding[2])?$padding[2].'px':$padding[2];
+													$paddingb = is_numeric($padding[3])?$padding[3].'px':$padding[3];
+													$td->style['padding'] = $paddingx." ".$paddingy." ".$paddinga." ".$paddingb;
+													break;
+												case 'tablealign':
+													switch($tbprop[2]) {
+														case 'left': break;
+														case 'center': $table->style['margin-left'] = 'auto'; $table->style['margin-right'] = 'auto'; break;
+														case 'right': $table->style['float'] = 'right'; $table->attributes['class'].=' float'; break;
+													}
+													break;
+												case 'bgcolor': $table->style['background-color'] = $tbprop[2]; break;
+												case 'bordercolor': $table->style['border-color'] = $tbprop[2]; $table->style['border-style'] = 'solid'; break;
+												case 'width': case 'tablewidth': $table->style['width'] = is_numeric($tbprop[2])?$tbprop[2].'px':$tbprop[2]; break;
 											}
-											break;
-										case 'bgcolor': $table->style['background-color'] = $tbprop[2]; break;
-										case 'bordercolor': $table->style['border-color'] = $tbprop[2]; $table->style['border-style'] = 'solid'; break;
-										case 'width': case 'tablewidth': $table->style['width'] = is_numeric($tbprop[2])?$tbprop[2].'px':$tbprop[2]; break;
+										}
+									}
+								} elseif(preg_match('/^(\||\-)([0-9]+)$/', $prop, $span)) {
+									if($span[1] == '-') {
+										$td->attributes['colspan'] = $span[2];
+										break;
+									}
+									elseif($span[1] == '|') {
+										$td->attributes['rowspan'] = $span[2];
+										break;
+									}
+								} elseif(preg_match('/^#(?:([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6})|([A-Za-z]+))$/', $prop, $span)) {
+									$td->style['background-color'] = $span[1]?'#'.$span[1]:$span[2];
+									break;
+								} elseif(preg_match('/^([^=]+)=(?|"(.*)"|\'(.*)\'|(.*))$/', $prop, $htmlprop)) {
+									switch($htmlprop[1]) {
+										case 'rowbgcolor': $tr->style['background-color'] = $htmlprop[2]; break;
+										case 'bgcolor': $td->style['background-color'] = $htmlprop[2]; break;
+										case 'width': $td->style['width'] = is_numeric($htmlprop[2])?$htmlprop[2].'px':$htmlprop[2]; break;
+										case 'height': $td->style['height'] = is_numeric($htmlprop[2])?$htmlprop[2].'px':$htmlprop[2]; break;
+										default: return $match[0];
+									}
+								} else {
+									return $match[0];
+								}
+						}
+						return '';
+					}, $cell);
+					$cell = htmlspecialchars($cell);
+					$cell = preg_replace('/^ ?(.+) ?$/', '$1', $cell);
+					if($cell=='') {
+						$simpleColspan += 1;
+						continue;
+					}
+					if($simpleColspan != 0) {
+						$td->attributes['colspan'] = $simpleColspan+1;
+						$simpleColspan = 0;
+					}
+					$lines = explode("\n", $cell);
+					$tempLine = null;
+					if(count(explode("{{{#!wiki", implode("\n", $lines)))>1){
+						$fullLine = implode("\n", $lines);
+						$styleExplode = explode('{{{#!wiki', $fullLine);
+						if(count(explode('{{{', $fullLine))-1==count(explode('{{{#!wiki', $fullLine))-1){
+							$fullLine = str_replace('}}}', '', $fullLine);
+							$explode = explode("\n", $fullLine);
+							if(!empty($explode)){
+								foreach($explode as $searchWiki){
+									if(trim(substr($searchWiki, 0, 10))=="{{{#!wiki"){
+										$thisline .= '<div '.htmlspecialchars_decode(substr($searchWiki, 10)).'>';
+										$thislinecnt++;
+									} else {
+										$thisline .= $searchWiki;
 									}
 								}
-							} elseif(preg_match('/^(\||\-)([0-9]+)$/', $prop, $span)) {
-								if($span[1] == '-') {
-									$td->attributes['colspan'] = $span[2];
-									break;
-								}
-								elseif($span[1] == '|') {
-									$td->attributes['rowspan'] = $span[2];
-									break;
-								}
-							} elseif(preg_match('/^#(?:([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6})|([A-Za-z]+))$/', $prop, $span)) {
-								$td->style['background-color'] = $span[1]?'#'.$span[1]:$span[2];
-								break;
-							} elseif(preg_match('/^([^=]+)=(?|"(.*)"|\'(.*)\'|(.*))$/', $prop, $htmlprop)) {
-								switch($htmlprop[1]) {
-									case 'rowbgcolor': $tr->style['background-color'] = $htmlprop[2]; break;
-									case 'bgcolor': $td->style['background-color'] = $htmlprop[2]; break;
-									case 'width': $td->style['width'] = is_numeric($htmlprop[2])?$htmlprop[2].'px':$htmlprop[2]; break;
-									case 'height': $td->style['height'] = is_numeric($htmlprop[2])?$htmlprop[2].'px':$htmlprop[2]; break;
-									default: return $match[0];
-								}
-							} else {
-								return $match[0];
 							}
-					}
-					return '';
-				}, $cell);
-				$cell = htmlspecialchars($cell);
-				$cell = preg_replace('/^ ?(.+) ?$/', '$1', $cell);
-				if($cell=='') {
-					$simpleColspan += 1;
-					continue;
-				}
-				if($simpleColspan != 0) {
-					$td->attributes['colspan'] = $simpleColspan+1;
-					$simpleColspan = 0;
-				}
-				$lines = explode("\n", $cell);
-				$tempLine = null;
-				if(count(explode("{{{#!wiki", implode("\n", $lines)))>1){
-					$fullLine = implode("\n", $lines);
-					$styleExplode = explode('{{{#!wiki', $fullLine);
-					if(count(explode('{{{', $fullLine))-1==count(explode('{{{#!wiki', $fullLine))-1){
-						$fullLine = str_replace('}}}', '', $fullLine);
-						$explode = explode("\n", $fullLine);
-						foreach($explode as $searchWiki){
-							if(trim(substr($searchWiki, 0, 10))=="{{{#!wiki"){
-								$thisline .= '<div '.htmlspecialchars_decode(substr($searchWiki, 10)).'>';
-								$thislinecnt++;
-							} else {
-								$thisline .= $searchWiki;
+							$t = $this->workEnd;
+							$this->workEnd = false;
+							$fullLine = $this->htmlScan($thisline);
+							while($thislinecnt>0){
+								$fullLine .= '</div>';
+								$thislinecnt--;
 							}
+							$this->workEnd = $t;
+							$td->innerHTML .= $fullLine;
+						} else {
+							array_shift($styleExplode);
+							if(!empty($styleExplode)){
+								foreach($styleExplode as $findLine){
+									$explode = explode("\n", $findLine);
+									$style = '<div'.htmlspecialchars_decode($explode[0]).'>';
+									array_shift($explode);
+									$implode = implode("\n", $explode);
+									$count = count(explode('{{{', $implode))-1;
+									$hash = md5($date.rand(1,99999));
+									$print = str_replace($hash, '}}}', preg_replace('/(}){3}/', '', preg_replace('/(}){3}/', $hash, $implode, $count), 1));
+								}
+							}
+							$t = $this->workEnd;
+							$this->workEnd = false;
+							$td->innerHTML .= $style.$this->htmlScan($print).'</div>';
+							$this->workEnd = $t;
 						}
-						$t = $this->workEnd;
-						$this->workEnd = false;
-						$fullLine = $this->htmlScan($thisline);
-						while($thislinecnt>0){
-							$fullLine .= '</div>';
-							$thislinecnt--;
-						}
-						$this->workEnd = $t;
-						$td->innerHTML .= $fullLine;
-					} else {
-						array_shift($styleExplode);
-						foreach($styleExplode as $findLine){
-							$explode = explode("\n", $findLine);
-							$style = '<div'.htmlspecialchars_decode($explode[0]).'>';
-							array_shift($explode);
-							$implode = implode("\n", $explode);
-							$count = count(explode('{{{', $implode))-1;
-							$hash = md5(date().rand(1,99999));
-							$print = str_replace($hash, '}}}', preg_replace('/(}){3}/', '', preg_replace('/(}){3}/', $hash, $implode, $count), 1));
-						}
-						$t = $this->workEnd;
-						$this->workEnd = false;
-						$td->innerHTML .= $style.$this->htmlScan($print).'</div>';
-						$this->workEnd = $t;
+						$lines = null;
+						$print = null;
+						$style = null;
+						$count = null;
+						$thisline = null;
+						$thislinecnt = null;
 					}
-					$lines = null;
-					$print = null;
-					$style = null;
-					$count = null;
-					$thisline = null;
-					$thislinecnt = null;
+					if(!empty($lines)){
+						foreach($lines as $line) {
+							$td->innerHTML .= $this->lineParser($line);
+						}
+					}
+					$tr->innerHTML .= $td->toString();
 				}
-				
-				foreach($lines as $line) {
-					$td->innerHTML .= $this->lineParser($line);
-				}
-				$tr->innerHTML .= $td->toString();
 			}
 			$table->innerHTML .= $tr->toString();
 		}
@@ -865,27 +897,29 @@ class theMark {
 					$csstxt = '';
 					if(!empty($match[3])) {
 						preg_match_all('/[&?]?([^=]+)=([^\&]+)/', htmlspecialchars_decode($match[3]), $param, PREG_SET_ORDER);
-						foreach($param as $pr) {
-							switch($pr[1]) {
-								case 'width':
-									if(preg_match('/^[0-9]+$/', $pr[2]))
-										$csstxt .= 'width: '.$pr[2].'px; ';
-									else
-										is_numeric($pr[2])?$pr[2].'px':$pr[2];
-										$csstxt .= 'width: '.$pr[2].'; ';
-									break;
-								case 'height':
-									if(preg_match('/^[0-9]+$/', $pr[2]))
-										$csstxt .= 'height: '.$pr[2].'px; ';
-									else
-										is_numeric($pr[2])?$pr[2].'px':$pr[2];
-										$csstxt .= 'height: '.$pr[2].'; ';
-									break;
-								case 'align':
-									if($pr[2]!='center')
-										$csstxt .= 'float: '.$pr[2].'; ';
-									break;
-								default: $paramtxt.=' '.$pr[1].'="'.$pr[2].'"';
+						if(!empty($param)){
+							foreach($param as $pr) {
+								switch($pr[1]) {
+									case 'width':
+										if(preg_match('/^[0-9]+$/', $pr[2]))
+											$csstxt .= 'width: '.$pr[2].'px; ';
+										else
+											is_numeric($pr[2])?$pr[2].'px':$pr[2];
+											$csstxt .= 'width: '.$pr[2].'; ';
+										break;
+									case 'height':
+										if(preg_match('/^[0-9]+$/', $pr[2]))
+											$csstxt .= 'height: '.$pr[2].'px; ';
+										else
+											is_numeric($pr[2])?$pr[2].'px':$pr[2];
+											$csstxt .= 'height: '.$pr[2].'; ';
+										break;
+									case 'align':
+										if($pr[2]!='center')
+											$csstxt .= 'float: '.$pr[2].'; ';
+										break;
+									default: $paramtxt.=' '.$pr[1].'="'.$pr[2].'"';
+								}
 							}
 						}
 					}
@@ -897,13 +931,15 @@ class theMark {
 				$j+=strlen($innerstr)-1;
 				continue;
 			} else {
-				foreach($this->single_bracket as $bracket) {
-					$nj=$j;
-					if(self::startsWith($line, $bracket['open'], $j) && $innerstr = $this->bracketParser($line, $nj, $bracket)) {
-						$line = substr($line, 0, $j).$innerstr.substr($line, $nj+1);
-						$line_len = strlen($line);
-						$j+=strlen($innerstr)-1;
-						break;
+				if(!empty($this->single_bracket)){
+					foreach($this->single_bracket as $bracket) {
+						$nj=$j;
+						if(self::startsWith($line, $bracket['open'], $j) && $innerstr = $this->bracketParser($line, $nj, $bracket)) {
+							$line = substr($line, 0, $j).$innerstr.substr($line, $nj+1);
+							$line_len = strlen($line);
+							$j+=strlen($innerstr)-1;
+							break;
+						}
 					}
 				}
 			}
@@ -928,41 +964,8 @@ class theMark {
 					array_push($this->links, array('target'=>$include[0], 'type'=>'include'));
 					
 					$w = $include[0];
-					if(count(explode(":", $w))>1){
-						$tp = explode(":", $w);
-						switch($tp[0]){
-							case '틀':
-								$namespace = '1';
-								break;
-							case '분류':
-								$namespace = '2';
-								break;
-							case '파일':
-								$namespace = '3';
-								break;
-							case '사용자':
-								$namespace = '4';
-								break;
-							case '나무위키':
-								$namespace = '6';
-								break;
-							case '휴지통':
-								$namespace = '8';
-								break;
-							case 'TheWiki':
-								$namespace = '10';
-								break;
-							case '이미지':
-								$namespace = '11';
-								break;
-							default:
-								$namespace = '0';
-						
-						}
-						if($namespace>0){
-							$w = str_replace($tp[0].":", "", implode(":", $tp));
-						}
-					}
+					$ifNamespace = addslashes(reset(explode(':', $w)));
+					chkNamespace($ifNamespace, 'text');
 					
 					$_POST = array('namespace'=>$namespace, 'title'=>$w, 'ip'=>$_SERVER['HTTP_CF_CONNECTING_IP'], 'option'=>'original');
 					include $_SERVER['DOCUMENT_ROOT'].'/API.php';
@@ -978,14 +981,15 @@ class theMark {
 						return ' ';
 					}
 					
-					if($arr['text']!="") {
-						foreach($include as $var) {
-							$var = explode('=', ltrim($var));
-							if(empty($var[1]))
-								$var[1]='';
-							$arr['text'] = str_replace('@'.$var[0].'@', strip_tags(htmlspecialchars_decode($var[1]), '<b>'), $arr['text']);
+					if(!empty($arr['text'])) {
+						if(!empty($include)){
+							foreach($include as $var) {
+								$var = explode('=', ltrim($var));
+								if(empty($var[1]))
+									$var[1]='';
+								$arr['text'] = str_replace('@'.$var[0].'@', strip_tags(htmlspecialchars_decode($var[1]), '<b>'), $arr['text']);
+							}
 						}
-						
 						$child = new theMark($arr['text']);
 						$child->included = true;
 						$child->workEnd = false;
@@ -996,22 +1000,26 @@ class theMark {
 				elseif(self::startsWith(strtolower($text), 'youtube') && preg_match('/^youtube\((.+)\)$/i', $text, $include) && $include = $include[1]) {
 					$include = explode(',', $include);
 					$var = array();
-					foreach($include as $v) {
-						$v = explode('=', $v);
-						if(empty($v[1]))
-							$v[1]='';
-						$var[$v[0]] = $v[1];
+					if(!empty($include)){
+						foreach($include as $v) {
+							$v = explode('=', $v);
+							if(empty($v[1]))
+								$v[1]='';
+							$var[$v[0]] = $v[1];
+						}
 					}
 					return '<iframe width="'.(!empty($var['width'])?$var['width']:'640').'" height="'.(!empty($var['height'])?$var['height']:'360').'" src="//www.youtube.com/embed/'.$include[0].'" frameborder="0" allowfullscreen></iframe>';
 				}
 				elseif(self::startsWith(strtolower($text), 'nicovideo') && preg_match('/^nicovideo\((.+)\)$/i', $text, $include) && $include = $include[1]) {
 					$include = explode(',', $include);
 					$var = array();
-					foreach($include as $v) {
-						$v = explode('=', $v);
-						if(empty($v[1]))
-							$v[1]='';
-						$var[$v[0]] = $v[1];
+					if(!empty($include)){
+						foreach($include as $v) {
+							$v = explode('=', $v);
+							if(empty($v[1]))
+								$v[1]='';
+							$var[$v[0]] = $v[1];
+						}
 					}
 					return '<script type="application/javascript" src="http://embed.nicovideo.jp/watch/'.$include[0].'/script?w='.(!empty($var['width'])?$var['width']:'640').'&h='.(!empty($var['height'])?$var['height']:'360').'"></script>';
 				}
@@ -1066,7 +1074,10 @@ class theMark {
 					$preview2 = strip_tags($preview, '<img>');
 					$preview = strip_tags($preview);
 					$preview = str_replace('"', '\\"', $preview);
-					return '<script type="text/javascript"> $(document).ready(function(){ $("#rfn-'.str_replace('%', '', rawurlencode(htmlspecialchars($id))).'").bind("contextmenu",function(e){ $("#Modalrfn-'.str_replace('%', '', rawurlencode(htmlspecialchars($id))).'").attr("style", "display: block;"); return false; }); $("#Modalrfn-'.str_replace('%', '', rawurlencode(htmlspecialchars($id))).'").on("click", function(){ $("#Modalrfn-'.str_replace('%', '', rawurlencode(htmlspecialchars($id))).'").attr("style", "display: none;"); }); $("#rfn-'.str_replace('%', '', rawurlencode(htmlspecialchars($id))).'").bind("touchend", function(){ $("#Modalrfn-'.str_replace('%', '', rawurlencode(htmlspecialchars($id))).'").attr("style", "display: block;"); }); $("#Modalrfn-'.str_replace('%', '', rawurlencode(htmlspecialchars($id))).'").bind("touchstart", function(){ $("#Modalrfn-'.str_replace('%', '', rawurlencode(htmlspecialchars($id))).'").attr("style", "display: none;"); }); }); </script><a id="rfn-'.str_replace('%', '', rawurlencode(htmlspecialchars($id))).'" class="wiki-fn-content" href="#fn-'.rawurlencode($id).'" title="'.$preview.'">['.($note[1]?$note[1]:$id).']</a><div class="modal in" id="Modalrfn-'.str_replace('%', '', rawurlencode(htmlspecialchars($id))).'" style="display: none;"><div class="modal-dialog" role="document"><div class="modal-content" style="overflow:hidden;"><div class="modal-body"> '.str_replace('<img', '<img style="max-width:100%;"', $preview2).'</div></div></div></div>';
+					if($this->alltext){
+						return ' ';
+					}
+					return '<script type="text/javascript"> $(document).ready(function(){ $("#rfn-'.str_replace('%', '', rawurlencode(htmlspecialchars($id))).'").bind("contextmenu",function(e){ $("#Modalrfn-'.str_replace('%', '', rawurlencode(htmlspecialchars($id))).'").attr("style", "display: block;"); return false; }); $("#Modalrfn-'.str_replace('%', '', rawurlencode(htmlspecialchars($id))).'").on("click", function(){ $("#Modalrfn-'.str_replace('%', '', rawurlencode(htmlspecialchars($id))).'").attr("style", "display: none;"); }); $("#rfn-'.str_replace('%', '', rawurlencode(htmlspecialchars($id))).'").bind("touchend", function(){ $("#Modalrfn-'.str_replace('%', '', rawurlencode(htmlspecialchars($id))).'").attr("style", "display: block;"); }); $("#Modalrfn-'.str_replace('%', '', rawurlencode(htmlspecialchars($id))).'").bind("touchstart", function(){ $("#Modalrfn-'.str_replace('%', '', rawurlencode(htmlspecialchars($id))).'").attr("style", "display: none;"); }); }); </script><a id="rfn-'.str_replace('%', '', rawurlencode(htmlspecialchars($id))).'" class="wiki-fn-content" href="#fn-'.rawurlencode($id).'" title="'.$preview.'">['.($note[1]?$note[1]:$id).']</a><div class="modal in" id="Modalrfn-'.str_replace('%', '', rawurlencode(htmlspecialchars($id))).'" style="display: none;"><div class="modal-dialog" role="document"><div class="modal-content" style="overflow:hidden;"><div class="modal-body" style="color:black;"> '.str_replace('<img', '<img style="max-width:100%;"', $preview2).'</div></div></div></div>';
 				}
 		}
 		return '['.$text.']';
@@ -1113,7 +1124,7 @@ class theMark {
 		$openTag = $html[0];
 		array_shift($html);
 		$contents = $this->htmlScan(implode("\n", $html));
-		return '<dl class="wiki-folding"><dt><center>'.$openTag.'</center></dt><dd style="display: none;"><div class="wiki-table-wrap" style="overflow:hidden;">'.$contents.'</div></dd></dl>';
+		return '<dl class="wiki-folding"><dt><center>'.$openTag.'</center></dt><dd style="display: none;"><div class="wiki-table-wrap" style="overflow:initial;">'.$contents.'</div></dd></dl>';
 	}
 	
 	private function textProcessor($text, $type) {
@@ -1173,18 +1184,20 @@ class theMark {
 		if(count($this->fn)==0)
 			return '';
 		$result = '<div class="wiki-macro-footnote">';
-		foreach($this->fn as $k => $fn) {
-			$result .= '<span class="footnote-list">';
-			if($fn['count']>1) {
-				$result .= '['.$fn['id'].'] ';
-				for($i=0;$i<$fn['count'];$i++) {
-					$result .= '<span class="target" id="fn-'.htmlspecialchars($fn['id']).'-'.($i+1).'"></span><a href="#rfn-'.rawurlencode($fn['id']).'-'.($i+1).'">'.chr(ord('A') + $i).'</a> ';
+		if(!empty($this->fn)){
+			foreach($this->fn as $k => $fn) {
+				$result .= '<span class="footnote-list">';
+				if($fn['count']>1) {
+					$result .= '['.$fn['id'].'] ';
+					for($i=0;$i<$fn['count'];$i++) {
+						$result .= '<span class="target" id="fn-'.htmlspecialchars($fn['id']).'-'.($i+1).'"></span><a href="#rfn-'.rawurlencode($fn['id']).'-'.($i+1).'">'.chr(ord('A') + $i).'</a> ';
+					}
 				}
+				else {
+					$result .= '<a id="fn-'.htmlspecialchars($fn['id']).'" href="#rfn-'.$fn['id'].'">['.$fn['id'].']</a> ';
+				}
+				$result .= $fn['text'].'</span>';
 			}
-			else {
-				$result .= '<a id="fn-'.htmlspecialchars($fn['id']).'" href="#rfn-'.$fn['id'].'">['.$fn['id'].']</a> ';
-			}
-			$result .= $fn['text'].'</span>';
 		}
 		$result .= '</div>';
 		$this->fn = array();
@@ -1284,15 +1297,19 @@ class theMark {
 	private function hParse(&$text) {
 		$lines = explode("\n", $text);
 		$result = '';
-		foreach($lines as $line) {
-			$matched = false;
-			foreach($this->h_tag as $tag_ar) {
-				$tag = $tag_ar[0];
-				$level = $tag_ar[1];
-				if(!empty($tag) && preg_match($tag, $line, $match)) {
-					$this->tocInsert($this->toc, $this->formatParser($match[1]), $level);
-					$matched = true;
-					break;
+		if(!empty($lines)){
+			foreach($lines as $line) {
+				$matched = false;
+				if(!empty($this->h_tag)){
+					foreach($this->h_tag as $tag_ar) {
+						$tag = $tag_ar[0];
+						$level = $tag_ar[1];
+						if(!empty($tag) && preg_match($tag, $line, $match)) {
+							$this->tocInsert($this->toc, $this->formatParser($match[1]), $level);
+							$matched = true;
+							break;
+						}
+					}
 				}
 			}
 		}
@@ -1315,11 +1332,13 @@ class theMark {
 		if(empty($arr[0]))
 			return '';
 		$result  = '<div class="toc-indent">';
-		foreach($arr as $i => $item) {
-			$readableId = $i+1;
-			$result .= '<div><a href="#s-'.$path.$readableId.'">'.$path.$readableId.'</a>. '.$item['name'].'</div>'
-							.$this->printToc($item['childNodes'], $level+1, $path.$readableId.'.')
-							.'';
+		if(!empty($arr)){
+			foreach($arr as $i => $item) {
+				$readableId = $i+1;
+				$result .= '<div><a href="#s-'.$path.$readableId.'">'.$path.$readableId.'</a>. '.$item['name'].'</div>'
+								.$this->printToc($item['childNodes'], $level+1, $path.$readableId.'.')
+								.'';
+			}
 		}
 		$result .= '</div>';
 		return $result;
