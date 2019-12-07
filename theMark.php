@@ -306,7 +306,7 @@ class theMark {
 		if(preg_match('/^( |\/)/', $href[0], $match)){
 			switch($match[1]){
 				case ' ': $href[0] = trim($href[0]); break;
-				case '/': $href[0] = $_GET['w'].$href[0]; break;
+				case '/': $href[0] = $this->pageTitle.$href[0]; break;
 			}
 		}
 		if(preg_match('/^https?:\/\//', $href[0])) {
@@ -412,10 +412,6 @@ class theMark {
 			return ' ';
 		}
 		elseif(preg_match('/^파일:(.+)$/', $href[0], $category)||preg_match('/^이미지:(.+)$/', $href[0], $category)||preg_match('/^나무파일:(.+)$/', $href[0], $category)) {
-			/*	파일 : 나무위키
-				이미지 : TheWiki
-				나무파일 : 알파위키 (180925 덤프)
-			*/
 			array_push($this->links, array('target'=>$category[0], 'type'=>'file'));
 			if($this->imageAsLink)
 				return '<span class="alternative">[<a target="_blank" href="'.self::encodeURI($category[0]).'">image</a>]</span>';
@@ -930,6 +926,51 @@ class theMark {
 				$line_len = strlen($line);
 				$j+=strlen($innerstr)-1;
 				continue;
+			}elseif(self::startsWith($line, 'attachment', $j) && preg_match('/attachment:([^\/]*\/)?([^ ]+\.(?:jpg|png|gif))(?:\?([^ ]+))?/i', $line, $match, 0, $j)) {
+				$imageText = '파일:attachment/';
+				if($match[1]!="/"){
+					$imageText .= $this->pageTitle."/";
+				}
+				$imageText .= $match[2];
+				if($this->imageAsLink)
+					$innerstr = '<span class="alternative">[<a class="external" target="_blank" href="/w/'.$imageText.'">image</a>]</span>';
+				else {
+					$paramtxt = '';
+					$csstxt = '';
+					if(!empty($match[3])) {
+						preg_match_all('/([^=]+)=([^\&]+)/', $match[3], $param, PREG_SET_ORDER);
+						foreach($param as $pr) {
+							switch($pr[1]) {
+								case 'width':
+									if(preg_match('/^[0-9]+$/', $pr[2]))
+										$csstxt .= 'width: '.$pr[2].'px; ';
+									else
+										is_numeric($pr[2])?$pr[2].'px':$pr[2];
+										$csstxt .= 'width: '.$pr[2].'; ';
+									break;
+								case 'height':
+									if(preg_match('/^[0-9]+$/', $pr[2]))
+										$csstxt .= 'height: '.$pr[2].'px; ';
+									else
+										is_numeric($pr[2])?$pr[2].'px':$pr[2];
+										$csstxt .= 'height: '.$pr[2].'; ';
+									break;
+								case 'align':
+									if($pr[2]!='center')
+										$csstxt .= 'float: '.$pr[2].'; ';
+									break;
+								default: $paramtxt.=' '.$pr[1].'="'.$pr[2].'"';
+							}
+						}
+					}
+					
+					$paramtxt .= ($csstxt!=''?' style="'.$csstxt.'"':'');
+					return self::getImage($imageText, $paramtxt);
+				}
+				$line = substr($line, 0, $j).$innerstr.substr($line, $j+strlen($match[0]));
+				$line_len = strlen($line);
+				$j+=strlen($innerstr)-1;
+				continue;
 			} else {
 				if(!empty($this->single_bracket)){
 					foreach($this->single_bracket as $bracket) {
@@ -965,7 +1006,17 @@ class theMark {
 					
 					$w = $include[0];
 					$ifNamespace = addslashes(reset(explode(':', $w)));
-					chkNamespace($ifNamespace, 'text');
+					if(count(explode(':', $w))>1){
+						$find = "SELECT * FROM wiki_contents_namespace WHERE name = '$ifNamespace'";
+						$findres = mysqli_query($wiki_db, $find);
+						$findarr = mysqli_fetch_array($findres);
+					}
+					if($findarr){
+						$namespace = $findarr[1];
+						$w = substr($w, strlen($findarr[3])+1);
+					} else {
+						$namespace = 0;
+					}
 					
 					$_POST = array('namespace'=>$namespace, 'title'=>$w, 'ip'=>$_SERVER['HTTP_CF_CONNECTING_IP'], 'option'=>'original');
 					include $_SERVER['DOCUMENT_ROOT'].'/API.php';
