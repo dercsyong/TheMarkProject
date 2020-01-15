@@ -1335,7 +1335,7 @@ class theMark {
 		$result = json_decode(json_encode($API_RETURN));
 		
 		if($result->status=='success'){
-			return '<img src="'.$result->link.'"'.(!empty($paramtxt)?$paramtxt:'').' alt="'.$fileName.'">';
+			return '<img data-original="'.$result->link.'"'.(!empty($paramtxt)?$paramtxt:'').' class="lazyimage" alt="'.$fileName.'">';
 		} elseif($result->status=='processing'){
 			return '[ No.'.$result->link.' ] 처리되어 검증중';
 		} elseif($result->status=='fail'){
