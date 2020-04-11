@@ -129,84 +129,66 @@ class theMark {
 		$this->redirect = true;
 		$this->workEnd = true;
 		$this->alltext = false;
+		$this->variables = array();
 	}
 	
 	public function toHtml() {
-		$this->whtml = htmlspecialchars(@$this->WikiPage);
-		if(count(explode('{{{#!folding', $this->whtml))>1){
-			$tableFoldingParser = explode('{{{#!folding', $this->whtml);
-			array_shift($tableFoldingParser);
-			if(!empty($tableFoldingParser)){
-				foreach($tableFoldingParser as $chkFoldingLine){
-					$explode = explode("\n", $chkFoldingLine);
-					$openTag = $explode[0];
-					array_shift($explode);
-					$count = 1;
-					$print = "{{{#!folding ".$openTag;
-					$original = "{{{#!folding".$openTag."\n";
-					if(count(explode('#!end}}}', implode("\n", $explode)))>1){
-						$print .= "\n".implode("\n", $explode);
-						$original .= implode("\n", $explode);
-						$hash = md5($date.rand(1,99999));
-						$print = substr($print, 0, strpos($print, '#!end}}}')+8);
-						$original = substr($original, 0, strpos($original, '#!end}}}')+8);
-						$this->FOLDINGDATA[$hash] = $print;
-						$this->whtml = str_replace($original, $hash, $this->whtml);
-						$tableFoldingParser = explode('{{{#!folding', $this->whtml);
-						array_shift($tableFoldingParser);
+		$this->whtml = htmlspecialchars(@$this->WikiPage); 
+		$folding = explode("{{{#!folding", $this->whtml);
+		while(count($folding)>1){
+			$data1 = end($folding);
+			$lines = explode("\n", $data1);
+			$openTag = $lines[0];
+			$end = 1;
+			foreach($lines as $line){
+				$end += (count(explode("{{{", $line))-1);
+				$end -= (count(explode("}}}", $line))-1);
+				
+				if($end<1){
+					$line2 = $line;
+					if(count(explode("}}}", $line))>2){
+						$line = preg_replace('/(}){3}/', '#!end}}}', $line, $prend);
+						$prend--;
+						$line = preg_replace('/#!end}}}/', '}}}', $line, $prend);
 					} else {
-						if(!empty($explode)){
-							foreach($explode as $value){
-								$t_count = $count;
-								$count += count(explode('{{{', $value))-1;
-								$p_count = $t_count-$count;
-								$count -= count(explode('}}}', $value))-1;
-								$pprecount = $precount;
-								if($p_count<0&&$t_count!=$count){
-									$precount++;
-								} else if($p_count>=0&&$t_count!=$count){
-									$precount--;
-								}
-								if($count<1){
-									if(strpos($value, '{{{')){
-										if(!strpos(substr($value, strpos($value, '{{{')), '}}}')){
-											$precount = count(explode('}}}', substr($value, strpos($value, '{{{'))));
-										}
-									} else {
-										$precount = $pprecount;
-									}
-									$hash = md5($date.rand(1,99999));
-									$print .= "\n".str_replace($hash, '}}}', preg_replace('/(}){3}/', '#!end}}}', preg_replace('/(}){3}/', $hash, $value, $precount), 1));
-									$original .= str_replace($hash, '}}}', preg_replace('/(}){3}/', '#!this}}}', preg_replace('/(}){3}/', $hash, $value, $precount), 1))."\n";
-									break;
-								} else {
-									$print .= "\n".$value;
-									$original .= $value."\n";
-								}
-							}
-						}
-						$original = trim($original);
-						$original = str_replace('#!this}}}', '}}}', substr($original, 0, strpos($original, '#!this}}}')+9));
-						$print = substr($print, 0, strpos($print, '#!end}}}')+8);
-						$hash = md5($date.rand(1,99999));
-						$this->FOLDINGDATA[$hash] = $print;
-						$this->whtml = str_replace($original, $hash, $this->whtml);
-						$tableFoldingParser = explode('{{{#!folding', $this->whtml);
-						array_shift($tableFoldingParser);
+						$line = str_replace("}}}", "#!end}}}", $line);
 					}
+					$data2 .= $line."\n";
+					$data3 .= str_replace(end(explode("#!end}}}", $line)), "", $line2)."\n";
+					break;
 				}
+				$prend = $end;
+				$data2 .= $line."\n";
+				$data3 .= $line."\n";
 			}
+			$data2 = rtrim($data2);
+			$data3 = rtrim($data3);
+			$lines = explode("\n", $data2);
+			array_shift($lines);
+			$lines = explode("#!end}}}", implode($lines, "\n"));
+			$hash = md5($date.rand(1,99999));
+			$this->FOLDINGDATA[$hash] = $lines[0];
+			$this->openTag[$hash] = $openTag;
+			$this->whtml = str_replace("{{{#!folding".$data3, $hash, $this->whtml);
+			$folding = explode("{{{#!folding", $this->whtml);
+			$loopCount++;
+			if($loopCount>10){
+				$folding = null;
+			}
+			$data2 = $data3 = null;
 		}
+		
 		$this->whtml = $this->htmlScan($this->whtml);
 		if(!empty($this->FOLDINGDATA)){
+			$this->FOLDINGDATA = array_reverse($this->FOLDINGDATA);
 			foreach($this->FOLDINGDATA as $hash=>$data){
-				$inFold = substr($data, 12, strpos($data, '#!end}}}')-12);
 				$this->workEnd = false;
-				$toFolding = $this->foldingProcessor($inFold, '');
+				$contents = $this->htmlScan($data);
+				$toFolding = '<dl class="wiki-folding"><dt><center>'.$this->openTag[$hash].'</center></dt><dd style="display: none;"><div class="wiki-table-wrap" style="overflow:initial;">'.$contents.'</div></dd></dl>';
 				$this->whtml = str_replace($hash, $toFolding, $this->whtml);
 			}
-		}
-		$this->whtml = str_replace('<a href="/w/'.str_replace(array('%3A', '%2F', '%23', '%28', '%29'), array(':', '/', '#', '(', ')'), rawurlencode($_GET['w'])).'"', '<a style="font-weight:bold;" href="/w/'.str_replace(array('%3A', '%2F', '%23', '%28', '%29'), array(':', '/', '#', '(', ')'), rawurlencode($_GET['w'])).'"', $this->whtml);
+		} 
+		$this->whtml = str_replace('<a href="/w/'.str_replace(array('%3A', '%2F', '%23', '%28', '%29'), array(':', '/', '#', '(', ')'), rawurlencode($this->pageTitle)).'"', '<a style="font-weight:bold;" href="/w/'.str_replace(array('%3A', '%2F', '%23', '%28', '%29'), array(':', '/', '#', '(', ')'), rawurlencode($this->pageTitle)).'"', $this->whtml);
 		$this->whtml = str_replace(array('onerror=', 'onload=', '&lt;math&gt;', '&lt;/math&gt;', '<math>', '</math>'), array('', '', '$$', '$$', '$$', '$$'), $this->whtml);
 		return $this->whtml;
 	}
@@ -703,7 +685,7 @@ class theMark {
 											if(!preg_match('/^([^=]+)=(?|"(.*)"|\'(.*)\'|(.*))$/', $tbprop, $tbprop))
 												continue;
 											switch($tbprop[1]) {
-												case 'align': case 'tablepadding':
+												case 'tablepadding':
 													$padding = explode(",", $tbprop[2]); 
 													$paddingx = is_numeric($padding[0])?$padding[0].'px':$padding[0];
 													$paddingy = is_numeric($padding[1])?$padding[1].'px':$padding[1];
@@ -711,15 +693,15 @@ class theMark {
 													$paddingb = is_numeric($padding[3])?$padding[3].'px':$padding[3];
 													$td->style['padding'] = $paddingx." ".$paddingy." ".$paddinga." ".$paddingb;
 													break;
-												case 'tablealign':
+												case 'align': case 'tablealign':
 													switch($tbprop[2]) {
 														case 'left': break;
 														case 'center': $table->style['margin-left'] = 'auto'; $table->style['margin-right'] = 'auto'; break;
 														case 'right': $table->style['float'] = 'right'; $table->attributes['class'].=' float'; break;
 													}
 													break;
-												case 'bgcolor': $table->style['background-color'] = $tbprop[2]; break;
-												case 'bordercolor': $table->style['border-color'] = $tbprop[2]; $table->style['border-style'] = 'solid'; break;
+												case 'bgcolor': $color = explode(",", $tbprop[2]); $table->style['background-color'] = $color[0]; break;
+												case 'bordercolor': $color = explode(",", $tbprop[2]); $table->style['border-color'] = $color[0]; $table->style['border-style'] = 'solid'; break;
 												case 'width': case 'tablewidth': $table->style['width'] = is_numeric($tbprop[2])?$tbprop[2].'px':$tbprop[2]; break;
 											}
 										}
@@ -734,6 +716,9 @@ class theMark {
 										break;
 									}
 								} elseif(preg_match('/^#(?:([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6})|([A-Za-z]+))$/', $prop, $span)) {
+									$td->style['background-color'] = $span[1]?'#'.$span[1]:$span[2];
+									break;
+								} elseif(preg_match('/#(?:([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6})|([A-Za-z]+)),#(?:([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6})|([A-Za-z]+))$/', $prop, $span)) {
 									$td->style['background-color'] = $span[1]?'#'.$span[1]:$span[2];
 									break;
 								} elseif(preg_match('/^([^=]+)=(?|"(.*)"|\'(.*)\'|(.*))$/', $prop, $htmlprop)) {
@@ -1118,6 +1103,137 @@ class theMark {
 					$include = explode(',', $include);
 					return '<ruby><rb>'.$include[0].'</rb><rp>(</rp><rt>'.substr(ltrim($include[1]), 5).'</rt></ruby>';
 				}
+				elseif(self::startsWithi(strtolower($text), 'define') && preg_match('/^define\((.+)\)$/i', $text, $include) && $include = $include[1]) {
+					$include = explode(',', $include);
+					
+					$pattern = '/([a-zA-Z0-9])+/';
+					preg_match_all($pattern, $include[0], $match);
+					$variablesName = implode('', $match[0]);
+					
+					if($variablesName!=""){
+						$pattern = '/([0-9.])+/';
+						preg_match_all($pattern, $include[1], $match);
+						$variablesData = implode('', $match[0]);
+						
+						if(is_numeric($variablesData)){
+							$this->variables[$variablesName] = $variablesData;
+							return ' ';
+						}
+					}
+				}
+				elseif(self::startsWithi(strtolower($text), 'defined') && preg_match('/^defined\((.+)\)$/i', $text, $include) && $include = $include[1]) {
+					$include = explode(',', $include);
+					
+					$pattern = '/([a-zA-Z0-9])+/';
+					preg_match_all($pattern, $include[0], $match);
+					$variablesName = implode('', $match[0]);
+					
+					if($variablesName!=""){
+						if(is_numeric($this->variables[$variablesName])&&!empty($this->variables[$variablesName])){
+							if($include[1]){
+								$realNum = explode(".", $this->variables[$variablesName])[1];
+								if($realNum>0){
+									return number_format($this->variables[$variablesName]).".".$realNum;
+								}
+								return number_format($this->variables[$variablesName]);
+							} else {
+								return $this->variables[$variablesName];
+							}
+						}
+					}
+					return 0;
+				}
+				elseif(self::startsWithi(strtolower($text), 'math') && preg_match('/^math\((.+)\)$/i', $text, $include) && $include = $include[1]) {
+					$include = explode(',', $include);
+					
+					$pattern = '/(\+|-|\/|\*|\+-)+/';
+					preg_match_all($pattern, $include[0], $match);
+					$mathType = implode('', $match[0]);
+					
+					$pattern = '/([a-zA-Z0-9])+/';
+					if($mathType=="+-"){
+						preg_match_all($pattern, $include[1], $match);
+						$variablesName1 = implode('', $match[0]);
+						
+						preg_match_all($pattern, $include[2], $match);
+						$variablesName2 = implode('', $match[0]);
+						
+						if($variablesName1!=""&&$variablesName2!=""){
+							if(is_numeric($this->variables[$variablesName1])&&!empty($this->variables[$variablesName1])&&is_numeric($this->variables[$variablesName2])&&!empty($this->variables[$variablesName2])){
+								$mathValue1 = $this->variables[$variablesName1];
+								$mathValue2 = $this->variables[$variablesName2];
+								$mathResult = $mathValue1 - $mathValue2;
+								if($mathResult>0){
+									$realNum = explode(".", $mathResult)[1];
+									if($realNum>0){
+										$realResult = number_format($mathResult).".".$realNum;
+									} else {
+										$realResult = number_format($mathResult);
+									}
+									return $realResult." 감소";
+								} else if($mathResult<0){
+									$mathResult *= -1;
+									$realNum = explode(".", $mathResult)[1];
+									if($realNum>0){
+										$realResult = number_format($mathResult).".".$realNum;
+									} else {
+										$realResult = number_format($mathResult);
+									}
+									return $realResult." 증가";
+								} else {
+									$realNum = explode(".", $mathResult)[1];
+									if($realNum>0){
+										$realResult = number_format($mathResult).".".$realNum;
+									} else {
+										$realResult = number_format($mathResult);
+									}
+									return $realResult." 유지";
+								}
+							}
+						}
+					} else if(in_array($mathType, array("+", "-", "/", "*"))){
+						array_shift($include);
+						foreach($include as $mathDatas){
+							preg_match_all($pattern, $mathDatas, $match);
+							$mathDatas = implode('', $match[0]);
+							if($mathDatas!=""){
+								if(is_numeric($this->variables[$mathDatas])&&!empty($this->variables[$mathDatas])){
+									$mathValue[] = $this->variables[$mathDatas];
+								}
+							}
+						}
+						if(!empty($mathValue)){
+							$mathResult = array_shift($mathValue);
+							if($mathType=="/"){
+								foreach($mathValue as $data){
+									$mathResult /= $data;
+								}
+							} else if($mathType=="*"){
+								foreach($mathValue as $data){
+									$mathResult *= $data;
+								}
+							} else if($mathType=="-"){
+								foreach($mathValue as $data){
+									$mathResult -= $data;
+								}
+							} else {
+								foreach($mathValue as $data){
+									$mathResult += $data;
+								}
+							}
+							$realNum = explode(".", $mathResult)[1];
+							if($realNum>0){
+								return number_format($mathResult).".".$realNum;
+							}
+							return number_format($mathResult);
+						} else {
+							return 0;
+						}
+					}
+					
+					
+					return 0;
+				}
 				elseif(self::startsWith($text, '*') && preg_match('/^\*([^ ]*)([ ].+)?$/', $text, $note)) {
 					$notetext = !empty($note[2])?$this->formatParser($note[2]):'';
 					$id = $this->fnInsert($this->fn, $notetext, $note[1]);
@@ -1149,6 +1265,14 @@ class theMark {
 			$result .= '</div>';
 			return $result;
 		}
+		if(self::startsWithi($text, '#!syntax')) {
+			$html = substr($text, 8);
+			$html = ltrim($html);
+			$hh = explode("\n", $html);
+			$syntax = trim(array_shift($hh));
+			$html = htmlspecialchars_decode(implode($hh, "\n"));
+			return '<pre><code class="'.$syntax.'">'.$html.'</code></pre>';
+		}
 		if(self::startsWithi($text, '#!html')) {
 			$html = substr($text, 6);
 			$html = ltrim($html);
@@ -1167,7 +1291,12 @@ class theMark {
 				return $text;
 			return '<span style="color: '.(empty($color[1])?$color[2]:'#'.$color[1]).'">'.$this->formatParser(str_replace("\n", "<br>", $color[3])).'</span>';
 		}
-		return '<pre><code>'.trim(htmlspecialchars_decode($text)).'</code></pre>';
+		if(preg_match('/^#(?:([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6})|([A-Za-z]+)),#(?:([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6})|([A-Za-z]+)) ((.|\n)*)$/', $text, $color)) {
+			if(empty($color[1]) && empty($color[2]))
+				return $text;
+			return '<span style="color: '.(empty($color[1])?$color[2]:'#'.$color[1]).'">'.$this->formatParser(str_replace("\n", "<br>", $color[5])).'</span>';
+		}
+		return '<pre><code class="plaintext">'.trim(htmlspecialchars_decode($text)).'</code></pre>';
 	}
 	
 	private function foldingProcessor($text, $type) {
@@ -1339,7 +1468,7 @@ class theMark {
 		} elseif($result->status=='processing'){
 			return '[ No.'.$result->link.' ] 처리되어 검증중';
 		} elseif($result->status=='fail'){
-			return '[ No.'.$result->link.' ] 이미지 등록됨';
+			return '[ No.'.$result->link.' ('.$result->hash.') ] 이미지 등록됨';
 		} else {
 			return ' ';
 		}
