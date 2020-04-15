@@ -674,7 +674,7 @@ class theMark {
 							case '(': break;
 							case ':': $td->style['text-align'] = 'center'; break;
 							case ')': $td->style['text-align'] = 'right'; break;
-							case 'white': case 'black': case 'gray': case 'red': case 'blue': case 'pink': case 'green': case 'yellow': case 'dimgray': case 'midnightblue': case 'lightskyblue': case 'orange': case 'firebrick': case 'gold': case 'forestgreen': case 'orangered': case 'darkslategray': case 'deepskyblue':
+							case 'white': case 'black': case 'gray': case 'red': case 'blue': case 'pink': case 'green': case 'yellow': case 'dimgray': case 'midnightblue': case 'lightskyblue': case 'orange': case 'firebrick': case 'gold': case 'forestgreen': case 'orangered': case 'darkslategray': case 'deepskyblue': case 'lavender':
 								$td->style['background-color'] = $prop;
 								break;
 							default:
@@ -1079,22 +1079,14 @@ class theMark {
 				}
 				elseif(self::startsWithi(strtolower($text), 'view') && preg_match('/^view\((.+)\)$/i', $text, $include) && $include = $include[1]) {
 					switch($include){
+						case 'edits':
+							return getEditCount();
 						case 'count':
-							$sql = "SELECT sum(count) AS result FROM wiki_count";
-							$res = mysqli_query($wiki_db, $sql);
-							$row = mysqli_fetch_assoc($res); 
-							if(empty($row['result'])){
-								return ' 0';
-							}
-							break;
-						case 'recent':
-							$sql = "SELECT count(*) AS result FROM wiki_contents_history";
-							$res = mysqli_query($wiki_db, $sql);
-							$row = mysqli_fetch_array($res); 
-							if(empty($row['result'])){
-								return ' 0';
-							}
-							break;
+							return getViewCount();
+						case 'actives':
+							return getActiveUser();
+						case 'users':
+							return getAllUser();
 						default: return ' 0';
 					}
 					return number_format($row['result']);
@@ -1143,7 +1135,7 @@ class theMark {
 					}
 					return 0;
 				}
-				elseif(self::startsWithi(strtolower($text), 'math') && preg_match('/^math\((.+)\)$/i', $text, $include) && $include = $include[1]) {
+				elseif(self::startsWithi(strtolower($text), 'definedmath') && preg_match('/^definedmath\((.+)\)$/i', $text, $include) && $include = $include[1]) {
 					$include = explode(',', $include);
 					
 					$pattern = '/(\+|-|\/|\*|\+-)+/';
@@ -1233,6 +1225,9 @@ class theMark {
 					
 					
 					return 0;
+				}
+				elseif(self::startsWithi(strtolower($text), 'math') && preg_match('/^math\((.+)\)$/i', $text, $include) && $include = $include[1]) {
+					return '<math>'.$include.'</math>';
 				}
 				elseif(self::startsWith($text, '*') && preg_match('/^\*([^ ]*)([ ].+)?$/', $text, $note)) {
 					$notetext = !empty($note[2])?$this->formatParser($note[2]):'';
