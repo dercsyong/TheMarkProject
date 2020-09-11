@@ -1,7 +1,7 @@
 <?php
 /*
 	theMark.php - New namumark parser Project
-	Copytight (C) 2019 derCSyong
+	Copytight (C) 2019-2020 derCSyong
 	https://github.com/dercsyong/TheMarkProject
 	
 	This program is free software: you can redistribute it and/or modify
@@ -135,26 +135,44 @@ class theMark {
 	public function toHtml() {
 		$this->whtml = htmlspecialchars(@$this->WikiPage); 
 		$folding = explode("{{{#!folding", $this->whtml);
+		$folding = array_reverse($folding);
 		while(count($folding)>1){
-			$data1 = end($folding);
-			$lines = explode("\n", $data1);
-			$openTag = $lines[0];
+			$data1 = explode("\n", $folding[0]);
+			$openTag = trim($data1[0]);
+			$openTagTemp = array_shift($data1);
 			$end = 1;
-			foreach($lines as $line){
+			
+			foreach($data1 as $line){
 				$end += (count(explode("{{{", $line))-1);
 				$end -= (count(explode("}}}", $line))-1);
 				
 				if($end<1){
 					$line2 = $line;
 					if(count(explode("}}}", $line))>2){
-						$line = preg_replace('/(}){3}/', '#!end}}}', $line, $prend);
-						$prend--;
-						$line = preg_replace('/#!end}}}/', '}}}', $line, $prend);
+						if($end==0&&$prend==1){
+							$lineX = explode("{{{", $line);
+							foreach($lineX as $line3){
+								if(count(explode("}}}", $line3))>2){
+									$line3 = str_replace('}}}', '#!end}}}', $line3);
+									$line3 = preg_replace('/#!end}}}/', '}}}', $line3, count(explode("}}}", $line3))-2);
+								}
+								$line4 .= $line3."}}}";
+							}
+							$line = substr($line4, 0, -3);
+						} else {
+							$line = preg_replace('/(}){3}/', '#!end}}}', $line, $prend);
+							$prend--;
+							$line = preg_replace('/#!end}}}/', '}}}', $line, $prend);
+						}
 					} else {
 						$line = str_replace("}}}", "#!end}}}", $line);
 					}
 					$data2 .= $line."\n";
-					$data3 .= str_replace(end(explode("#!end}}}", $line)), "", $line2)."\n";
+					if($line=="#!end}}}"){
+						$data3 .= $line2."\n";
+					} else {
+						$data3 .= substr($line2, 0, -strlen(end(explode("#!end}}}", $line))))."\n";
+					}
 					break;
 				}
 				$prend = $end;
@@ -163,19 +181,18 @@ class theMark {
 			}
 			$data2 = rtrim($data2);
 			$data3 = rtrim($data3);
-			$lines = explode("\n", $data2);
-			array_shift($lines);
-			$lines = explode("#!end}}}", implode($lines, "\n"));
+			$data4 = rtrim(explode("#!end}}}", $data2)[0]);
 			$hash = md5($date.rand(1,99999));
-			$this->FOLDINGDATA[$hash] = $lines[0];
+			$this->FOLDINGDATA[$hash] = $data4;
 			$this->openTag[$hash] = $openTag;
-			$this->whtml = str_replace("{{{#!folding".$data3, $hash, $this->whtml);
+			$this->whtml = str_replace("{{{#!folding".$openTagTemp."\n".$data3, $hash, $this->whtml);
 			$folding = explode("{{{#!folding", $this->whtml);
+			$folding = array_reverse($folding);
 			$loopCount++;
 			if($loopCount>10){
 				$folding = null;
 			}
-			$data2 = $data3 = null;
+			$data2 = $data3 = $data4 = null;
 		}
 		
 		$this->whtml = $this->htmlScan($this->whtml);
@@ -322,7 +339,7 @@ class theMark {
 											$csstxt .= 'height: '.$pr[2].'; ';
 										break;
 									case 'align':
-										if($pr[2]!='center')
+										if($pr[2]=='right')
 											$csstxt .= 'float: '.$pr[2].'; ';
 										break;
 									default: $paramtxt.=' '.$pr[1].'="'.$pr[2].'"';
@@ -370,7 +387,7 @@ class theMark {
 										$csstxt .= 'height: '.$pr[2].'; ';
 									break;
 								case 'align':
-									if($pr[2]!='center')
+									if($pr[2]=='right')
 										$csstxt .= 'float: '.$pr[2].'; ';
 									break;
 								default: $paramtxt.=' '.$pr[1].'="'.$pr[2].'"';
@@ -424,7 +441,7 @@ class theMark {
 										$csstxt .= 'height: '.$pr[2].'; ';
 									break;
 								case 'align':
-									if($pr[2]!='center')
+									if($pr[2]=='right')
 										$csstxt .= 'float: '.$pr[2].'; ';
 									break;
 								default: $paramtxt.=' '.$pr[1].'="'.$pr[2].'"';
@@ -466,7 +483,7 @@ class theMark {
 										$csstxt .= 'height: '.$pr[2].'; ';
 									break;
 								case 'align':
-									if($pr[2]!='center')
+									if($pr[2]=='right')
 										$csstxt .= 'float: '.$pr[2].'; ';
 									break;
 								default: $paramtxt.=' '.$pr[1].'="'.$pr[2].'"';
@@ -641,6 +658,8 @@ class theMark {
 		$table = new HTMLElement('table');
 		$table->attributes['class'] = 'wiki-table';
 		$table->style['overflow'] = 'hidden';
+		//$table->style['display'] = 'block';
+		$table->style['max-width'] = '100%';
 		
 		if(!self::startsWith($text, '||', $offset)) {
 			$caption = new HTMLElement('caption');
@@ -1162,7 +1181,7 @@ class theMark {
 									} else {
 										$realResult = number_format($mathResult);
 									}
-									return $realResult." 감소";
+									return $realResult." ▼";
 								} else if($mathResult<0){
 									$mathResult *= -1;
 									$realNum = explode(".", $mathResult)[1];
@@ -1171,7 +1190,7 @@ class theMark {
 									} else {
 										$realResult = number_format($mathResult);
 									}
-									return $realResult." 증가";
+									return $realResult." ▲";
 								} else {
 									$realNum = explode(".", $mathResult)[1];
 									if($realNum>0){
@@ -1179,7 +1198,7 @@ class theMark {
 									} else {
 										$realResult = number_format($mathResult);
 									}
-									return $realResult." 유지";
+									return $realResult." -";
 								}
 							}
 						}
@@ -1453,10 +1472,7 @@ class theMark {
 	}
 	
 	private static function getImage($fileName, $paramtxt) {
-		$_POST = array('w'=>$fileName);
-		define('MODEINCLUDE', true);
-		include $_SERVER['DOCUMENT_ROOT'].'/API.php';
-		$result = json_decode(json_encode($API_RETURN));
+		$result = getImageData($fileName);
 		
 		if($result->status=='success'){
 			return '<img data-original="'.$result->link.'"'.(!empty($paramtxt)?$paramtxt:'').' class="lazyimage" alt="'.$fileName.'">';
