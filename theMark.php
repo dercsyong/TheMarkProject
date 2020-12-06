@@ -671,6 +671,8 @@ class theMark {
 			$offset++;
 		}
 		
+		$this->colbgcolor = array();
+		$this->colcolor = array();
 		for($i=$offset;$i<$len && ((!empty($caption) && $i === $offset) || (substr($text, $i, 2) === '||' && $i+=2));) {
 			if(!preg_match('/\|\|( *?(?:\n|$))/', $text, $match, PREG_OFFSET_CAPTURE, $i) || !isset($match[0]) || !isset($match[0][1]))
 				$rowend = -1;
@@ -685,9 +687,17 @@ class theMark {
 			
 			$tr = new HTMLElement('tr');
 			$simpleColspan = 0;
+			$this->colCount = 0;
 			if(!empty($row)){
 				foreach($row as $cell) {
 					$td = new HTMLElement('td');
+					$this->colCount++;
+					if(in_array($this->colCount, $this->colbgcolor[0])){
+						$td->style['background-color'] = $this->colbgcolor[1][$this->colCount];
+					}
+					if(in_array($this->colCount, $this->colcolor[0])){
+						$td->style['color'] = $this->colcolor[1][$this->colCount];
+					}
 					$cell = htmlspecialchars_decode($cell);
 					$cell = preg_replace_callback('/<(.+?)>/', function($match) use ($table, $tr, $td) {
 						$prop = $match[1];
@@ -695,10 +705,12 @@ class theMark {
 							case '(': break;
 							case ':': $td->style['text-align'] = 'center'; break;
 							case ')': $td->style['text-align'] = 'right'; break;
-							case 'white': case 'black': case 'gray': case 'red': case 'blue': case 'pink': case 'green': case 'yellow': case 'dimgray': case 'midnightblue': case 'lightskyblue': case 'orange': case 'firebrick': case 'gold': case 'forestgreen': case 'orangered': case 'darkslategray': case 'deepskyblue': case 'lavender':
-								$td->style['background-color'] = $prop;
-								break;
 							default:
+								$color_set = array('aliceblue', 'antiquewhite', 'aqua', 'aquamarine', 'azure', 'beige', 'bisque', 'black', 'blanchedalmond', 'blue', 'blueviolet', 'brown' ,'burlywood', 'cadetblue', 'chartreuse', 'chocolate', 'coral', 'cornflowerblue', 'cornsilk', 'crimson', 'cyan', 'darkblue', 'darkcyan', 'darkgoldenrod', 'darkgray', 'darkgreen', 'darkgrey', 'darkkhaki', 'darkmagenta', 'darkolivegreen', 'darkorange', 'darkorchid', 'darkred', 'darksalmon', 'darkseagreen', 'darkslateblue', 'darkslategray', 'darkslategrey', 'darkturquoise', 'darkviolet', 'deeplink', 'deepskyblue', 'dimgray', 'dimgrey', 'dodgerblue', 'firebrick', 'floralwhite', 'forestgreen', 'fuchsia', 'gainsboro', 'ghostwhite', 'gold', 'goldenrod', 'gray', 'green', 'greenyellow', 'grey', 'honeydew', 'hotpink', 'indianred', 'indigo', 'ivory', 'khaki', 'lavender', 'lavenderblush', 'lawngreen', 'lemonchiffon', 'lightblue', 'lightcoral', 'lightcyan', 'lightgoldenrodyellow', 'lightgray', 'lightgreen', 'lightgrey', 'lightpink', 'lightsalmon', 'lightseagreen', 'lightskyblue', 'lightslategray', 'lightslategrey', 'lightstellblue', 'lightyellow', 'lime', 'limegreen', 'linen', 'magenta', 'maroon', 'mediumaquamarine', 'mediumblue', 'mediumorchid', 'mediumpurple', 'mediumseagreen', 'mediumslateblue', 'mediumspringgreen', 'mediumturquoise', 'mediumvioletred', 'midnightblue', 'mintcream', 'mistyrose', 'moccasin', 'navajowhite', 'navy', 'oldlace', 'olive', 'olivedrab', 'orange', 'orangered', 'orchid', 'palegoldenrod', 'palegreen', 'paleturquoise', 'palevioletred', 'papayawhip', 'peachpuff', 'peru', 'pink', 'plum', 'powederblue', 'purple', 'rebeccapurple', 'red', 'rosybrown', 'royalblue', 'saddlebrown', 'salmon', 'sandybrown', 'seagreen', 'seashell', 'sienna', 'silver', 'skyblue', 'slateblue', 'slategray', 'slategrey', 'snow', 'springgreen', 'steelblue', 'tan', 'teal', 'thistle', 'tomato', 'turquoise', 'violet', 'wheat', 'white', 'whitesmoke', 'yellow', 'yellowgreen');
+								if(in_array($prop, $color_set)){
+									$td->style['background-color'] = $prop;
+									break;
+								}
 								if(self::startsWith($prop, 'table')) {
 									$tbprops = explode(' ', $prop);
 									if(!empty($tbprops)){
@@ -745,7 +757,10 @@ class theMark {
 								} elseif(preg_match('/^([^=]+)=(?|"(.*)"|\'(.*)\'|(.*))$/', $prop, $htmlprop)) {
 									switch($htmlprop[1]) {
 										case 'rowbgcolor': $tr->style['background-color'] = $htmlprop[2]; break;
+										case 'colbgcolor': $td->style['background-color'] = $htmlprop[2]; $this->colbgcolor[0][] = $this->colCount; $this->colbgcolor[1][$this->colCount] = $htmlprop[2]; break;
 										case 'bgcolor': $td->style['background-color'] = $htmlprop[2]; break;
+										case 'rowcolor': $tr->style['color'] = $htmlprop[2]; break;
+										case 'colcolor': $td->style['color'] = $htmlprop[2]; $this->colcolor[0][] = $this->colCount; $this->colcolor[1][$this->colCount] = $htmlprop[2]; break;
 										case 'width': $td->style['width'] = is_numeric($htmlprop[2])?$htmlprop[2].'px':$htmlprop[2]; break;
 										case 'height': $td->style['height'] = is_numeric($htmlprop[2])?$htmlprop[2].'px':$htmlprop[2]; break;
 										default: return $match[0];
@@ -1073,6 +1088,19 @@ class theMark {
 					}
 					return '<iframe width="'.(!empty($var['width'])?$var['width']:'640').'" height="'.(!empty($var['height'])?$var['height']:'360').'" src="//www.youtube.com/embed/'.$include[0].'" frameborder="0" allowfullscreen></iframe>';
 				}
+				elseif(self::startsWith(strtolower($text), 'kakaotv') && preg_match('/^kakaotv\((.+)\)$/i', $text, $include) && $include = $include[1]) {
+					$include = explode(',', $include);
+					$var = array();
+					if(!empty($include)){
+						foreach($include as $v) {
+							$v = explode('=', $v);
+							if(empty($v[1]))
+								$v[1]='';
+							$var[$v[0]] = $v[1];
+						}
+					}
+					return '<iframe width="'.(!empty($var['width'])?$var['width']:'640').'" height="'.(!empty($var['height'])?$var['height']:'360').'" src="//tv.kakao.com/embed/player/cliplink/'.$include[0].'" frameborder="0" allowfullscreen></iframe>';
+				}
 				elseif(self::startsWith(strtolower($text), 'nicovideo') && preg_match('/^nicovideo\((.+)\)$/i', $text, $include) && $include = $include[1]) {
 					$include = explode(',', $include);
 					$var = array();
@@ -1258,7 +1286,7 @@ class theMark {
 				}
 				elseif(self::startsWithi(strtolower($text), 'pagecount') && preg_match('/^pagecount\((.+)\)$/i', $text, $include) && $include = $include[1]) {
 					if(!$mongo){
-						$mongo = new MongoDB\Driver\Manager('mongodb://'.$GLOBALS['mongoUser'].':'.$GLOBALS['mongoPW'].'@'.$GLOBALS['mongoHost'].':27017/thewiki');
+						$mongo = new MongoDB\Driver\Manager('mongodb://username:password@localhost:27017/thewiki');
 					}
 					switch($include){
 						case '문서':
