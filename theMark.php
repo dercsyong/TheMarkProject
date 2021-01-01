@@ -1,7 +1,7 @@
 <?php
 /*
 	theMark.php - New namumark parser Project
-	Copytight (C) 2019-2020 derCSyong
+	Copytight (C) 2019-2021 derCSyong
 	https://github.com/dercsyong/TheMarkProject
 	
 	This program is free software: you can redistribute it and/or modify
@@ -219,7 +219,7 @@ class theMark {
 			if(!$this->redirect){
 				return '#redirect '.$target[1];
 			}
-			if(str_replace('https://'.$_SERVER['HTTP_HOST'].'/w/', '', $_SERVER['HTTP_REFERER'])==str_replace("+", "%20", urlencode($target[1]))){
+			if(str_replace(array('http://'.$_SERVER['HTTP_HOST'].'/w/', 'https://'.$_SERVER['HTTP_HOST'].'/w/'), '', $_SERVER['HTTP_REFERER'])==str_replace("+", "%20", urlencode($target[1]))){
 				return '흐음, 잠시만요. <b>같은 문서끼리 리다이렉트 되고 있는 것 같습니다!</b><br>다음 문서중 하나를 수정하여 문제를 해결할 수 있습니다.<hr><a href="/history/'.self::encodeURI($target[1]).'" target="_blank">'.$target[1].'</a><br><a href="/history/'.rawurlencode($THEWIKI_NOW_TITLE_FULL).'" target="_blank">'.$THEWIKI_NOW_TITLE_FULL.'</a><hr>문서를 수정했는데 같은 문제가 계속 발생하나요? <a href="'.self::encodeURI($target[1]).'"><b>여기</b></a>를 확인해보세요!';
 			} else {
 				$_SESSION['THEWIKI_MOVED_DOCUMENT'] = $this->pageTitle;
@@ -325,20 +325,20 @@ class theMark {
 							foreach($param as $pr) {
 								switch($pr[1]) {
 									case 'width':
-										if(preg_match('/^[0-9]+$/', $pr[2]))
-											$csstxt .= 'width: '.$pr[2].'px; ';
-										else
-											if(reset(explode('%', $pr[2]))>100)
-												$pr[2] = '100%';
-											is_numeric($pr[2])?$pr[2].'px':$pr[2];
-											$csstxt .= 'width: '.$pr[2].'; ';
+										if(preg_match('/^[0-9]+(px|%)?$/', $pr[2], $pri)){
+											if(empty($pri[1])){
+												$csstxt .= 'width: '.$pr[2].'px; ';
+											}
+										}
+										$csstxt .= 'width: '.$pr[2].'; ';
 										break;
 									case 'height':
-										if(preg_match('/^[0-9]+$/', $pr[2]))
-											$csstxt .= 'height: '.$pr[2].'px; ';
-										else
-											is_numeric($pr[2])?$pr[2].'px':$pr[2];
-											$csstxt .= 'height: '.$pr[2].'; ';
+										if(preg_match('/^[0-9]+(px|%)?$/', $pr[2], $pri)){
+											if(empty($pri[1])){
+												$csstxt .= 'height: '.$pr[2].'px; ';
+											}
+										}
+										$csstxt .= 'height: '.$pr[2].'; ';
 										break;
 									case 'align':
 										if($pr[2]=='right')
@@ -373,20 +373,20 @@ class theMark {
 						foreach($param as $pr) {
 							switch($pr[1]) {
 								case 'width':
-									if(preg_match('/^[0-9]+$/', $pr[2]))
-										$csstxt .= 'width: '.$pr[2].'px; ';
-									else
-										if(reset(explode('%', $pr[2]))>100)
-											$pr[2] = '100%';
-										is_numeric($pr[2])?$pr[2].'px':$pr[2];
-										$csstxt .= 'width: '.$pr[2].'; ';
+									if(preg_match('/^[0-9]+(px|%)?$/', $pr[2], $pri)){
+										if(empty($pri[1])){
+											$csstxt .= 'width: '.$pr[2].'px; ';
+										}
+									}
+									$csstxt .= 'width: '.$pr[2].'; ';
 									break;
 								case 'height':
-									if(preg_match('/^[0-9]+$/', $pr[2]))
-										$csstxt .= 'height: '.$pr[2].'px; ';
-									else
-										is_numeric($pr[2])?$pr[2].'px':$pr[2];
-										$csstxt .= 'height: '.$pr[2].'; ';
+									if(preg_match('/^[0-9]+(px|%)?$/', $pr[2], $pri)){
+										if(empty($pri[1])){
+											$csstxt .= 'height: '.$pr[2].'px; ';
+										}
+									}
+									$csstxt .= 'height: '.$pr[2].'; ';
 									break;
 								case 'align':
 									if($pr[2]=='right')
@@ -427,20 +427,20 @@ class theMark {
 						foreach($param as $pr) {
 							switch($pr[1]) {
 								case 'width':
-									if(preg_match('/^[0-9]+$/', $pr[2]))
-										$csstxt .= 'width: '.$pr[2].'px; ';
-									else
-										if(reset(explode('%', $pr[2]))>100)
-											$pr[2] = '100%';
-										is_numeric($pr[2])?$pr[2].'px':$pr[2];
-										$csstxt .= 'width: '.$pr[2].'; ';
+									if(preg_match('/^[0-9]+(px|%)?$/', $pr[2], $pri)){
+										if(empty($pri[1])){
+											$csstxt .= 'width: '.$pr[2].'px; ';
+										}
+									}
+									$csstxt .= 'width: '.$pr[2].'; ';
 									break;
 								case 'height':
-									if(preg_match('/^[0-9]+$/', $pr[2]))
-										$csstxt .= 'height: '.$pr[2].'px; ';
-									else
-										is_numeric($pr[2])?$pr[2].'px':$pr[2];
-										$csstxt .= 'height: '.$pr[2].'; ';
+									if(preg_match('/^[0-9]+(px|%)?$/', $pr[2], $pri)){
+										if(empty($pri[1])){
+											$csstxt .= 'height: '.$pr[2].'px; ';
+										}
+									}
+									$csstxt .= 'height: '.$pr[2].'; ';
 									break;
 								case 'align':
 									if($pr[2]=='right')
@@ -460,7 +460,12 @@ class theMark {
 				$paramtxt = '';
 				$csstxt = '';
 				$href[1] = substr($href[1], 2);
-				$href[2] = substr($href[2], 0, -2);
+				if(substr($href[2], -2)==']]'){
+					$href[2] = substr($href[2], 0, -2);
+				} else {
+					$extra = substr($href[2], strpos($href[2], ']]')+2);
+					$href[2] = substr($href[2], 0, strpos($href[2], ']]'));
+				}
 				preg_match_all('/[&?]?([^=]+)=([^\&]+)/', htmlspecialchars_decode($href[2]), $param, PREG_SET_ORDER);
 				if(empty($param)){
 					return ' ';
@@ -469,20 +474,20 @@ class theMark {
 						foreach($param as $pr) {
 							switch($pr[1]) {
 								case 'width':
-									if(preg_match('/^[0-9]+$/', $pr[2]))
-										$csstxt .= 'width: '.$pr[2].'px; ';
-									else
-										if(reset(explode('%', $pr[2]))>100)
-											$pr[2] = '100%';
-										is_numeric($pr[2])?$pr[2].'px':$pr[2];
-										$csstxt .= 'width: '.$pr[2].'; ';
+									if(preg_match('/^[0-9]+(px|%)?$/', $pr[2], $pri)){
+										if(empty($pri[1])){
+											$csstxt .= 'width: '.$pr[2].'px; ';
+										}
+									}
+									$csstxt .= 'width: '.$pr[2].'; ';
 									break;
 								case 'height':
-									if(preg_match('/^[0-9]+$/', $pr[2]))
-										$csstxt .= 'height: '.$pr[2].'px; ';
-									else
-										is_numeric($pr[2])?$pr[2].'px':$pr[2];
-										$csstxt .= 'height: '.$pr[2].'; ';
+									if(preg_match('/^[0-9]+(px|%)?$/', $pr[2], $pri)){
+										if(empty($pri[1])){
+											$csstxt .= 'height: '.$pr[2].'px; ';
+										}
+									}
+									$csstxt .= 'height: '.$pr[2].'; ';
 									break;
 								case 'align':
 									if($pr[2]=='right')
@@ -918,18 +923,20 @@ class theMark {
 							foreach($param as $pr) {
 								switch($pr[1]) {
 									case 'width':
-										if(preg_match('/^[0-9]+$/', $pr[2]))
-											$csstxt .= 'width: '.$pr[2].'px; ';
-										else
-											is_numeric($pr[2])?$pr[2].'px':$pr[2];
-											$csstxt .= 'width: '.$pr[2].'; ';
+										if(preg_match('/^[0-9]+(px|%)?$/', $pr[2], $pri)){
+											if(empty($pri[1])){
+												$csstxt .= 'width: '.$pr[2].'px; ';
+											}
+										}
+										$csstxt .= 'width: '.$pr[2].'; ';
 										break;
 									case 'height':
-										if(preg_match('/^[0-9]+$/', $pr[2]))
-											$csstxt .= 'height: '.$pr[2].'px; ';
-										else
-											is_numeric($pr[2])?$pr[2].'px':$pr[2];
-											$csstxt .= 'height: '.$pr[2].'; ';
+										if(preg_match('/^[0-9]+(px|%)?$/', $pr[2], $pri)){
+											if(empty($pri[1])){
+												$csstxt .= 'height: '.$pr[2].'px; ';
+											}
+										}
+										$csstxt .= 'height: '.$pr[2].'; ';
 										break;
 									case 'align':
 										if($pr[2]!='center')
@@ -963,18 +970,20 @@ class theMark {
 						foreach($param as $pr) {
 							switch($pr[1]) {
 								case 'width':
-									if(preg_match('/^[0-9]+$/', $pr[2]))
-										$csstxt .= 'width: '.$pr[2].'px; ';
-									else
-										is_numeric($pr[2])?$pr[2].'px':$pr[2];
-										$csstxt .= 'width: '.$pr[2].'; ';
+									if(preg_match('/^[0-9]+(px|%)?$/', $pr[2], $pri)){
+										if(empty($pri[1])){
+											$csstxt .= 'width: '.$pr[2].'px; ';
+										}
+									}
+									$csstxt .= 'width: '.$pr[2].'; ';
 									break;
 								case 'height':
-									if(preg_match('/^[0-9]+$/', $pr[2]))
-										$csstxt .= 'height: '.$pr[2].'px; ';
-									else
-										is_numeric($pr[2])?$pr[2].'px':$pr[2];
-										$csstxt .= 'height: '.$pr[2].'; ';
+									if(preg_match('/^[0-9]+(px|%)?$/', $pr[2], $pri)){
+										if(empty($pri[1])){
+											$csstxt .= 'height: '.$pr[2].'px; ';
+										}
+									}
+									$csstxt .= 'height: '.$pr[2].'; ';
 									break;
 								case 'align':
 									if($pr[2]!='center')
