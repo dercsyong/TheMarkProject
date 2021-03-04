@@ -130,6 +130,7 @@ class theMark {
 		$this->workEnd = true;
 		$this->alltext = false;
 		$this->variables = array();
+		$this->docfold = false;
 	}
 	
 	public function toHtml() {
@@ -189,7 +190,7 @@ class theMark {
 			$folding = explode("{{{#!folding", $this->whtml);
 			$folding = array_reverse($folding);
 			$loopCount++;
-			if($loopCount>10){
+			if($loopCount>100){
 				$folding = null;
 			}
 			$data2 = $data3 = $data4 = null;
@@ -319,7 +320,7 @@ class theMark {
 				if(!empty($href[1])) {
 					preg_match_all('/[&?]?([^=]+)=([^\&]+)/', htmlspecialchars_decode($href[1]), $param, PREG_SET_ORDER);
 					if(empty($param)){
-						return $href[1];
+						return '<a href="'.$match[1].'" class="wiki-link-external" target="_blank">'.$this->formatParser($href[1]).'</a>';
 					} else {
 						if(!empty($param)){
 							foreach($param as $pr) {
@@ -549,7 +550,15 @@ class theMark {
 			$level = strlen($match[1]);
 			$innertext = $this->formatParser($match[2]);
 			$id = $this->tocInsert($this->toc, $innertext, $level);
-			$result .= '<br><h'.$level.' id="s-'.$id.'"><a name="s-'.$id.'" href="#toc">'.$id.'</a>. '.$innertext.'</h'.$level.'><hr>';
+			if($this->docfold){
+				if($this->istocTrue){
+					$result .= '</div>';
+				}
+				$result .= '<br><h'.$level.' id="s-'.$id.'"><a class="foldtoc tocOn" style="float: left; font-family: Ionicons; font-size: .8em; line-height: 1.8em; text-align: center; margin: 0px 10px 0px 2px; color: #666; text-decoration: none; cursor: pointer;">&#xf35f;</a><a name="s-'.$id.'" href="#toc">'.$id.'</a>. '.$innertext.'</h'.$level.'><hr><div class="ss-'.str_replace(".", "_", $id).'">';
+				$this->istocTrue = true;
+			} else {
+				$result .= '<br><h'.$level.' id="s-'.$id.'"><a name="s-'.$id.'" href="#toc">'.$id.'</a>. '.$innertext.'</h'.$level.'><hr>';
+			}
 			$line = '';
 		}
 		if($line == '----') {
