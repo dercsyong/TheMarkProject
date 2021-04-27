@@ -1,7 +1,7 @@
 <?php
 /*
 	theMark.php - New namumark parser Project
-	Copytight (C) 2019-2021 derCSyong
+	Copytight (C) 2019 derCSyong
 	https://github.com/dercsyong/TheMarkProject
 	
 	This program is free software: you can redistribute it and/or modify
@@ -131,6 +131,7 @@ class theMark {
 		$this->alltext = false;
 		$this->variables = array();
 		$this->docfold = false;
+		$this->refresh = 365;
 	}
 	
 	public function toHtml() {
@@ -202,7 +203,7 @@ class theMark {
 			foreach($this->FOLDINGDATA as $hash=>$data){
 				$this->workEnd = false;
 				$contents = $this->htmlScan($data);
-				$toFolding = '<dl class="wiki-folding"><dt><center>'.$this->openTag[$hash].'</center></dt><dd style="display: none;"><div class="wiki-table-wrap" style="overflow:initial;">'.$contents.'</div></dd></dl>';
+				$toFolding = '<dl class="wiki-folding"><dt><center>'.$this->openTag[$hash].'</center></dt><dd style="display:block;opacity:0;height:0;overflow:hidden;"><div class="wiki-table-wrap" style="overflow:initial;">'.$contents.'</div></dd></dl>';
 				$this->whtml = str_replace($hash, $toFolding, $this->whtml);
 			}
 		} 
@@ -301,6 +302,16 @@ class theMark {
 	
 	public function getLinks() {
 		return @$this->links;
+	}
+	
+	public function getRefresh(){
+		return @$this->refresh;
+	}
+	
+	private function changeRefresh($num) {
+		if($theMark->refresh>$num){
+			$theMark->refresh = $num;
+		}
 	}
 	
 	private function linkProcessor($text, $type) {
@@ -501,7 +512,7 @@ class theMark {
 				}
 				$paramtxt .= ($csstxt!=''?' style="'.$csstxt.'"':'');
 				
-				return '<a href="/w/'.$href[0].'" class="wiki-link-internal" target="_self">'.self::getImage($href[1], $paramtxt).'</a>';
+				return '<a href="/w/'.$href[0].'" class="wiki-link-internal" target="_self">'.self::getImage($href[1], $paramtxt).$this->formatParser($extra).'</a>';
 			}
 			if(self::startsWith($href[0], ':')) {
 				$href[0] = substr($href[0], 1);
@@ -858,7 +869,14 @@ class theMark {
 			$table->innerHTML .= $tr->toString();
 		}
 		$offset = $i-1;
-		return $table->toString();
+		
+		$divHtml = new HTMLElement('div');
+		$divHtml->attributes['class'] = 'wiki-table-wrap';
+		//$divHtml->style['width'] = 'fit-content';
+		$divHtml->style['max-width'] = '100%';
+		$divHtml->innerHTML = $table->toString();
+		
+		return $divHtml->toString();
 	}
 	
 	private function bracketParser($text, &$now, $bracket) {
@@ -1033,12 +1051,12 @@ class theMark {
 			return $this->macro_processors[$macroName]();
 		switch($macroName) {
 			case 'br': return '<br>';
-			case 'date': case 'datetime': return date('Y-m-d H:i:s');
+			case 'date': case 'datetime': self::changeRefresh(5); return date('Y-m-d H:i:s');
 			case '목차': case 'tableofcontents': return $this->printToc();
 			case '각주': case 'footnote': return $this->printFootnote();
 			case 'pagecount':
 				if(!$mongo){
-					$mongo = new MongoDB\Driver\Manager('mongodb://username:password@localhost:27017/thewiki');
+					$mongo = mongoDBconnect();
 				}
 				$arr = $mongo->executeCommand('thewiki', new MongoDB\Driver\Command(["count"=>"docData".$GLOBALS['settings']['docVersion']]))->toArray();
 				return number_format($arr[0]->n);
@@ -1052,6 +1070,9 @@ class theMark {
 					$w = $include[0];
 					$ifNamespace = addslashes(reset(explode(':', $w)));
 					if(count(explode(':', $w))>1){
+						if(!$wiki_db){
+							include $_SERVER['DOCUMENT_ROOT'].'/config.php';
+						}
 						$find = "SELECT * FROM wiki_contents_namespace WHERE name = '$ifNamespace'";
 						$findres = mysqli_query($wiki_db, $find);
 						$findarr = mysqli_fetch_array($findres);
@@ -1153,12 +1174,22 @@ class theMark {
 				elseif(self::startsWithi(strtolower($text), 'view') && preg_match('/^view\((.+)\)$/i', $text, $include) && $include = $include[1]) {
 					switch($include){
 						case 'edits':
+							self::changeRefresh(3);
 							return getEditCount();
 						case 'count':
+							self::changeRefresh(1);
 							return getViewCount();
 						case 'actives':
+							self::changeRefresh(7);
 							return getActiveUser();
+						case 'activeuser':
+							self::changeRefresh(7);
+							return getActiveUser2('account');
+						case 'activeip':
+							self::changeRefresh(7);
+							return getActiveUser2('ip');
 						case 'users':
+							self::changeRefresh(7);
 							return getAllUser();
 						default: return ' 0';
 					}
@@ -1304,7 +1335,7 @@ class theMark {
 				}
 				elseif(self::startsWithi(strtolower($text), 'pagecount') && preg_match('/^pagecount\((.+)\)$/i', $text, $include) && $include = $include[1]) {
 					if(!$mongo){
-						$mongo = new MongoDB\Driver\Manager('mongodb://username:password@localhost:27017/thewiki');
+						$mongo = mongoDBconnect();
 					}
 					switch($include){
 						case '문서':
@@ -1392,7 +1423,7 @@ class theMark {
 		$openTag = $html[0];
 		array_shift($html);
 		$contents = $this->htmlScan(implode("\n", $html));
-		return '<dl class="wiki-folding"><dt><center>'.$openTag.'</center></dt><dd style="display: none;"><div class="wiki-table-wrap" style="overflow:initial;">'.$contents.'</div></dd></dl>';
+		return '<dl class="wiki-folding"><dt><center>'.$openTag.'</center></dt><dd style="display:block;opacity:0;height:0;overflow:hidden;"><div class="wiki-table-wrap" style="overflow:initial;">'.$contents.'</div></dd></dl>';
 	}
 	
 	private function textProcessor($text, $type) {
@@ -1546,6 +1577,7 @@ class theMark {
 	}
 	
 	private static function getImage($fileName, $paramtxt) {
+		self::changeRefresh(14);
 		$result = getImageData($fileName);
 		
 		if($result->status=='success'){
