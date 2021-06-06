@@ -1,7 +1,7 @@
 <?php
 /*
 	theMark.php - New namumark parser Project
-	Copytight (C) 2019 derCSyong
+	Copytight (C) 2019- derCSyong
 	https://github.com/dercsyong/TheMarkProject
 	
 	This program is free software: you can redistribute it and/or modify
@@ -99,11 +99,6 @@ class theMark {
 		);
 		$this->multi_bracket = array(
 			array(
-				'open'	=> '{{{#!folding',
-				'close' => '#!end}}}',
-				'multiline' => true,
-				'processor' => array($this,'foldingProcessor')),
-			array(
 				'open'	=> '{{{',
 				'close' => '}}}',
 				'multiline' => true,
@@ -135,7 +130,8 @@ class theMark {
 	}
 	
 	public function toHtml() {
-		$this->whtml = htmlspecialchars(@$this->WikiPage); 
+		$this->whtml = htmlspecialchars(@$this->WikiPage);
+		
 		$folding = explode("{{{#!folding", $this->whtml);
 		$folding = array_reverse($folding);
 		while(count($folding)>1){
@@ -145,49 +141,41 @@ class theMark {
 			$end = 1;
 			
 			foreach($data1 as $line){
-				$end += (count(explode("{{{", $line))-1);
-				$end -= (count(explode("}}}", $line))-1);
+				$end += substr_count($line, "{{{");
+				$end -= substr_count($line, "}}}");
 				
 				if($end<1){
 					$line2 = $line;
-					if(count(explode("}}}", $line))>2){
-						if($end==0&&$prend==1){
-							$lineX = explode("{{{", $line);
-							foreach($lineX as $line3){
-								if(count(explode("}}}", $line3))>2){
-									$line3 = str_replace('}}}', '#!end}}}', $line3);
-									$line3 = preg_replace('/#!end}}}/', '}}}', $line3, count(explode("}}}", $line3))-2);
-								}
-								$line4 .= $line3."}}}";
-							}
-							$line = substr($line4, 0, -3);
-						} else {
-							$line = preg_replace('/(}){3}/', '#!end}}}', $line, $prend);
-							$prend--;
-							$line = preg_replace('/#!end}}}/', '}}}', $line, $prend);
+					if(substr_count($line, "}}}")>1){
+						$pos = 0;
+						$tpos = strlen($line);
+						$end *= -1;
+						while($end>=0){
+							$pos = strrpos(substr($line, 0, $tpos), '}}}', $pos-3);
+							$tpos = $pos;
+							$end--;
 						}
+						
+						$line = substr($line, 0, $pos).'#!end'.substr($line, $pos);
 					} else {
 						$line = str_replace("}}}", "#!end}}}", $line);
 					}
 					$data2 .= $line."\n";
-					if($line=="#!end}}}"){
-						$data3 .= $line2."\n";
-					} else {
-						$data3 .= substr($line2, 0, -strlen(end(explode("#!end}}}", $line))))."\n";
-					}
+					$data3 .= $line2."\n";
 					break;
 				}
-				$prend = $end;
 				$data2 .= $line."\n";
 				$data3 .= $line."\n";
 			}
+			
 			$data2 = rtrim($data2);
 			$data3 = rtrim($data3);
 			$data4 = rtrim(explode("#!end}}}", $data2)[0]);
-			$hash = md5($date.rand(1,99999));
+			$hash = md5(rand(1,99999));
 			$this->FOLDINGDATA[$hash] = $data4;
 			$this->openTag[$hash] = $openTag;
-			$this->whtml = str_replace("{{{#!folding".$openTagTemp."\n".$data3, $hash, $this->whtml);
+			$this->whtml = str_replace("{{{#!folding".$openTagTemp."\n".$data3, $hash.explode("#!end}}}", $data2)[1], $this->whtml);
+			
 			$folding = explode("{{{#!folding", $this->whtml);
 			$folding = array_reverse($folding);
 			$loopCount++;
@@ -537,7 +525,7 @@ class theMark {
 	private function lineParser($line) {
 		$result = '';
 		$line_len = strlen($line);
-		if(!empty($GLOBALS['tempLine'])&&!$GLOBALS['tableFold']){
+		if(!empty($GLOBALS['tempLine'])){
 			if(count(explode('}}}', $line))<=1){
 				$GLOBALS['tempLine'] .= $line;
 				$line = '';
@@ -806,67 +794,23 @@ class theMark {
 						$td->attributes['colspan'] = $simpleColspan+1;
 						$simpleColspan = 0;
 					}
+					
 					$lines = explode("\n", $cell);
-					$tempLine = null;
-					if(count(explode("{{{#!wiki", implode("\n", $lines)))>1){
-						$fullLine = implode("\n", $lines);
-						$styleExplode = explode('{{{#!wiki', $fullLine);
-						if(count(explode('{{{', $fullLine))-1==count(explode('{{{#!wiki', $fullLine))-1){
-							$fullLine = str_replace('}}}', '', $fullLine);
-							$explode = explode("\n", $fullLine);
-							if(!empty($explode)){
-								foreach($explode as $searchWiki){
-									if(trim(substr($searchWiki, 0, 10))=="{{{#!wiki"){
-										$thisline .= '<div '.htmlspecialchars_decode(substr($searchWiki, 10)).'>';
-										$thislinecnt++;
-									} else {
-										$thisline .= $searchWiki;
-									}
-								}
-							}
-							$t = $this->workEnd;
-							$this->workEnd = false;
-							$fullLine = $this->htmlScan($thisline);
-							while($thislinecnt>0){
-								$fullLine .= '</div>';
-								$thislinecnt--;
-							}
-							$this->workEnd = $t;
-							$td->innerHTML .= $fullLine;
-						} else {
-							array_shift($styleExplode);
-							if(!empty($styleExplode)){
-								foreach($styleExplode as $findLine){
-									$explode = explode("\n", $findLine);
-									$style = '<div'.htmlspecialchars_decode($explode[0]).'>';
-									array_shift($explode);
-									$implode = implode("\n", $explode);
-									$count = count(explode('{{{', $implode))-1;
-									$hash = md5($date.rand(1,99999));
-									$print = str_replace($hash, '}}}', preg_replace('/(}){3}/', '', preg_replace('/(}){3}/', $hash, $implode, $count), 1));
-								}
-							}
-							$t = $this->workEnd;
-							$this->workEnd = false;
-							$td->innerHTML .= $style.$this->htmlScan($print).'</div>';
-							$this->workEnd = $t;
-						}
-						$lines = null;
-						$print = null;
-						$style = null;
-						$count = null;
-						$thisline = null;
-						$thislinecnt = null;
-					}
-					if(!empty($lines)){
-						foreach($lines as $line) {
-							$td->innerHTML .= $this->lineParser($line);
-						}
+					foreach($lines as $line) {
+						$td->innerHTML .= $this->lineParser($line);
 					}
 					$tr->innerHTML .= $td->toString();
 				}
 			}
 			$table->innerHTML .= $tr->toString();
+			
+			if(substr_count($table->innerHTML, '{{{#!wiki')>0){
+				$temp = explode('{{{#!wiki', $table->innerHTML);
+				for($x=1;$x<=substr_count($table->innerHTML, '{{{#!wiki');$x++){
+					$style = htmlspecialchars_decode(explode('<br/>', explode('style=', $temp[$x])[1])[0]);
+					$table->innerHTML = str_replace(array('{{{#!wiki style='.explode('<br/>', explode('style=', $temp[$x])[1])[0], '}}}'), array('<div style='.$style.'>', '</div>'), $table->innerHTML);
+				}
+			}
 		}
 		$offset = $i-1;
 		
@@ -1370,6 +1314,12 @@ class theMark {
 	}
 	
 	private function renderProcessor($text, $type) {
+		if(self::startsWithi($text, '#!folding')) {
+			$temp = explode("\n", $text);
+			$openTag = trim(explode("#!folding", $temp[0])[1]);
+			array_shift($temp);
+			return '<dl class="wiki-folding"><dt><center>'.$openTag.'</center></dt><dd style="display:block;opacity:0;height:0;overflow:hidden;"><div class="wiki-table-wrap" style="overflow:initial;">'.$this->htmlScan(implode("\n", $temp)).'</div></dd></dl>';
+		}
 		if(self::startsWithi($text, '#!wiki')) {
 			$text = str_replace("<br>", "\n", $text);
 			$html = explode("\n", $text);
@@ -1416,14 +1366,6 @@ class theMark {
 			return '<span style="color: '.(empty($color[1])?$color[2]:'#'.$color[1]).'">'.$this->formatParser(str_replace("\n", "<br>", $color[5])).'</span>';
 		}
 		return '<pre><code class="plaintext">'.trim(htmlspecialchars_decode($text)).'</code></pre>';
-	}
-	
-	private function foldingProcessor($text, $type) {
-		$html = explode("\n", $text);
-		$openTag = $html[0];
-		array_shift($html);
-		$contents = $this->htmlScan(implode("\n", $html));
-		return '<dl class="wiki-folding"><dt><center>'.$openTag.'</center></dt><dd style="display:block;opacity:0;height:0;overflow:hidden;"><div class="wiki-table-wrap" style="overflow:initial;">'.$contents.'</div></dd></dl>';
 	}
 	
 	private function textProcessor($text, $type) {
