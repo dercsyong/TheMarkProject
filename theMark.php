@@ -206,14 +206,20 @@ class theMark {
 		$now = '';
 		$line = '';
 		if(self::startsWith($text, '#') && preg_match('/^#(?:redirect|넘겨주기) (.+)$/im', $text, $target)) {
+			$GLOBALS['settings']['docCache'] = 0;
+			if(count(explode('#s-', $target[1]))>1){
+				$temp = explode('#s-', $target[1]);
+				$target[1] = trim($temp[0]).'#s-'.$temp[1];
+			}
 			if(!$this->redirect){
 				return '#redirect '.$target[1];
 			}
-			if(str_replace(array('http://'.$_SERVER['HTTP_HOST'].'/w/', 'https://'.$_SERVER['HTTP_HOST'].'/w/'), '', $_SERVER['HTTP_REFERER'])==str_replace("+", "%20", urlencode($target[1]))){
-				return '흐음, 잠시만요. <b>같은 문서끼리 리다이렉트 되고 있는 것 같습니다!</b><br>다음 문서중 하나를 수정하여 문제를 해결할 수 있습니다.<hr><a href="/history/'.self::encodeURI($target[1]).'" target="_blank">'.$target[1].'</a><br><a href="/history/'.rawurlencode($THEWIKI_NOW_TITLE_FULL).'" target="_blank">'.$THEWIKI_NOW_TITLE_FULL.'</a><hr>문서를 수정했는데 같은 문제가 계속 발생하나요? <a href="'.self::encodeURI($target[1]).'"><b>여기</b></a>를 확인해보세요!';
+			
+			if($_SESSION['THEWIKI_MOVED_DOCUMENT_CNT']>5||str_replace(array('http://'.$_SERVER['HTTP_HOST'].'/w/', 'https://'.$_SERVER['HTTP_HOST'].'/w/'), '', $_SERVER['HTTP_REFERER'])==str_replace("+", "%20", urlencode($target[1]))){
+				return '흐음, 잠시만요. <b>같은 문서끼리 리다이렉트 되고 있는 것 같습니다!</b><br>다음 문서중 하나를 수정하여 문제를 해결할 수 있습니다.<hr><a href="/edit/'.self::encodeURI($target[1]).'" target="_blank">'.$target[1].'</a><br><a href="/history/'.rawurlencode($THEWIKI_NOW_TITLE_FULL).'" target="_blank">'.$THEWIKI_NOW_TITLE_FULL.'</a><hr>문서를 수정했는데 같은 문제가 계속 발생하나요? <a href="'.self::encodeURI($target[1]).'"><b>여기</b></a>를 확인해보세요!';
 			} else {
+				$_SESSION['THEWIKI_MOVED_DOCUMENT_CNT']++;
 				$_SESSION['THEWIKI_MOVED_DOCUMENT'] = $this->pageTitle;
-				$settings['docCache'] = 0;
 				return 'Redirection...'.$target[1].'<script> location.href = "/w/'.self::encodeURI($target[1]).'"; </script>';
 			}
 		}
@@ -564,6 +570,10 @@ class theMark {
 			$result .= '<hr>';
 			$line = '';
 		}
+		if(self::startsWith($line, '>')) {
+			$result .= '<blockquote class="wiki-quote">'.substr($this->formatParser($line), 1).'</blockquote>';
+			$line = '';
+		}
 		$line = $this->formatParser($line);
 		if($line != '') {
 			$result .= $line.'<br/>';
@@ -674,7 +684,7 @@ class theMark {
 		$table->attributes['class'] = 'wiki-table';
 		$table->style['overflow'] = 'hidden';
 		//$table->style['display'] = 'block';
-		$table->style['max-width'] = '100%';
+		//$table->style['max-width'] = '100%';
 		
 		if(!self::startsWith($text, '||', $offset)) {
 			$caption = new HTMLElement('caption');
@@ -695,9 +705,9 @@ class theMark {
 			}
 			if($rowend === -1 || !$row = substr($text, $i, $rowend-$i))
 				break;
+			
 			$i = $rowend+$endlen;
 			$row = explode('||', $row);
-			
 			$tr = new HTMLElement('tr');
 			$simpleColspan = 0;
 			$this->colCount = 0;
@@ -746,9 +756,12 @@ class theMark {
 														case 'right': $table->style['float'] = 'right'; $table->attributes['class'].=' float'; break;
 													}
 													break;
-												case 'bgcolor': $color = explode(",", $tbprop[2]); $table->style['background-color'] = $color[0]; break;
-												case 'bordercolor': $color = explode(",", $tbprop[2]); $table->style['border-color'] = $color[0]; $table->style['border-style'] = 'solid'; break;
-												case 'width': case 'tablewidth': $table->style['width'] = is_numeric($tbprop[2])?$tbprop[2].'px':$tbprop[2]; break;
+												case 'tablebgcolor': $color = explode(",", $tbprop[2]); $table->style['background-color'] = $color[0]; break;
+												case 'bgcolor': $color = explode(",", $tbprop[2]); $td->style['background-color'] = $color[0]; break;
+												case 'tablebordercolor': $color = explode(",", $tbprop[2]); $table->style['border-color'] = $color[0]; $table->style['border-style'] = 'solid'; break;
+												case 'bordercolor': $color = explode(",", $tbprop[2]); $td->style['border-color'] = $color[0]; $td->style['border-style'] = 'solid'; break;
+												case 'width': $td->style['width'] = is_numeric($tbprop[2])?$tbprop[2].'px':$tbprop[2]; break;
+												case 'tablewidth': $table->style['width'] = is_numeric($tbprop[2])?$tbprop[2].'px':$tbprop[2]; break;
 											}
 										}
 									}
@@ -774,6 +787,7 @@ class theMark {
 										case 'bgcolor': $td->style['background-color'] = $htmlprop[2]; break;
 										case 'rowcolor': $tr->style['color'] = $htmlprop[2]; break;
 										case 'colcolor': $td->style['color'] = $htmlprop[2]; $this->colcolor[0][] = $this->colCount; $this->colcolor[1][$this->colCount] = $htmlprop[2]; break;
+										case 'color': $td->style['color'] = $htmlprop[2]; break;
 										case 'width': $td->style['width'] = is_numeric($htmlprop[2])?$htmlprop[2].'px':$htmlprop[2]; break;
 										case 'height': $td->style['height'] = is_numeric($htmlprop[2])?$htmlprop[2].'px':$htmlprop[2]; break;
 										default: return $match[0];
@@ -818,6 +832,7 @@ class theMark {
 		$divHtml->attributes['class'] = 'wiki-table-wrap';
 		//$divHtml->style['width'] = 'fit-content';
 		$divHtml->style['max-width'] = '100%';
+		$divHtml->style['overflow-x'] = 'auto';
 		$divHtml->innerHTML = $table->toString();
 		
 		return $divHtml->toString();
@@ -1031,7 +1046,7 @@ class theMark {
 					$_POST = array('namespace'=>$namespace, 'title'=>$w, 'ip'=>$_SERVER['HTTP_CF_CONNECTING_IP'], 'option'=>'original');
 					include $_SERVER['DOCUMENT_ROOT'].'/API.php';
 					
-					if($api_result->status!='success'||$api_result->type=='refresh'){
+					if($api_result->status!='success'){
 						return ' ';
 					} else {
 						$arr['text'] = $api_result->data;
@@ -1053,6 +1068,7 @@ class theMark {
 						}
 						$child = new theMark($arr['text']);
 						$child->included = true;
+						$child->redirect = false;
 						$child->workEnd = false;
 						return $child->toHtml();
 					}
@@ -1325,9 +1341,8 @@ class theMark {
 			$html = explode("\n", $text);
 			$result = '<div '.substr(htmlspecialchars_decode($html[0]), 7).'>';
 			array_shift($html);
-			$this->included = true;
 			if(!empty($this->FOLDINGDATA[$html[0]])){
-				$result .= $this->formatParser(implode("\n", $html));
+				$result .= $this->lineParser(implode("\n", $html));
 			} else {
 				$result .= $this->htmlScan(implode("\n", $html));
 			}
@@ -1339,7 +1354,7 @@ class theMark {
 			$html = ltrim($html);
 			$hh = explode("\n", $html);
 			$syntax = trim(array_shift($hh));
-			$html = htmlspecialchars_decode(implode($hh, "\n"));
+			$html = implode($hh, "\n");
 			return '<pre><code class="'.$syntax.'">'.$html.'</code></pre>';
 		}
 		if(self::startsWithi($text, '#!html')) {
@@ -1365,7 +1380,7 @@ class theMark {
 				return $text;
 			return '<span style="color: '.(empty($color[1])?$color[2]:'#'.$color[1]).'">'.$this->formatParser(str_replace("\n", "<br>", $color[5])).'</span>';
 		}
-		return '<pre><code class="plaintext">'.trim(htmlspecialchars_decode($text)).'</code></pre>';
+		return '<pre><code class="plaintext">'.trim($text).'</code></pre>';
 	}
 	
 	private function textProcessor($text, $type) {
@@ -1525,9 +1540,9 @@ class theMark {
 		if($result->status=='success'){
 			return '<img data-original="'.$result->link.'"'.(!empty($paramtxt)?$paramtxt:'').' class="lazyimage" alt="'.$fileName.'">';
 		} elseif($result->status=='processing'){
-			return '[ No.'.$result->link.' ] 처리되어 검증중';
+			return '[ No.'.$result->link.' ] 이미지 확인중';
 		} elseif($result->status=='fail'){
-			return '[ No.'.$result->link.' ('.$result->hash.') ] 이미지 등록됨';
+			return '[ No.'.$result->link.' ] 이미지 준비중';
 		} else {
 			return ' ';
 		}
