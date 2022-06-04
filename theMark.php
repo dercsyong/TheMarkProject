@@ -32,6 +32,12 @@ class theMark {
 			array('i.', 'ol class="lower-roman"')
 		);
 		$this->h_tag = array(
+			array('/^======# (.*) #======/', 6),
+			array('/^=====# (.*) #=====/', 5),
+			array('/^====# (.*) #====/', 4),
+			array('/^===# (.*) #===/', 3),
+			array('/^==# (.*) #==/', 2),
+			array('/^=# (.*) #=/', 1),
 			array('/^====== (.*) ======/', 6),
 			array('/^===== (.*) =====/', 5),
 			array('/^==== (.*) ====/', 4),
@@ -127,9 +133,15 @@ class theMark {
 		$this->variables = array();
 		$this->docfold = false;
 		$this->refresh = 365;
+		$this->threadMode = false;
+		$this->includeCnt = 0;
 	}
 	
 	public function toHtml() {
+		if($this->threadMode==true){
+			$this->redirect = false;
+			$this->included = true;
+		}
 		$this->whtml = htmlspecialchars(@$this->WikiPage);
 		
 		$folding = explode("{{{#!folding", $this->whtml);
@@ -190,13 +202,18 @@ class theMark {
 			$this->FOLDINGDATA = array_reverse($this->FOLDINGDATA);
 			foreach($this->FOLDINGDATA as $hash=>$data){
 				$this->workEnd = false;
-				$contents = $this->htmlScan($data);
-				$toFolding = '<dl class="wiki-folding"><dt><center>'.$this->openTag[$hash].'</center></dt><dd style="display:block;opacity:0;height:0;overflow:hidden;"><div class="wiki-table-wrap" style="overflow:initial;">'.$contents.'</div></dd></dl>';
+				$child = new theMark(htmlspecialchars_decode($data));
+				$child->included = true;
+				$child->redirect = false;
+				$child->workEnd = false;
+				$contents = $child->toHtml();
+				$toFolding = '<dl class="wiki-folding"><dt><center>'.$this->openTag[$hash].'</center></dt><dd class="start"><div class="wiki-table-wrap" style="overflow:initial;">'.$contents.'</div></dd></dl>';
 				$this->whtml = str_replace($hash, $toFolding, $this->whtml);
 			}
 		} 
 		$this->whtml = str_replace('<a href="/w/'.str_replace(array('%3A', '%2F', '%23', '%28', '%29'), array(':', '/', '#', '(', ')'), rawurlencode($this->pageTitle)).'"', '<a style="font-weight:bold;" href="/w/'.str_replace(array('%3A', '%2F', '%23', '%28', '%29'), array(':', '/', '#', '(', ')'), rawurlencode($this->pageTitle)).'"', $this->whtml);
-		$this->whtml = str_replace(array('onerror=', 'onload=', '&lt;math&gt;', '&lt;/math&gt;', '<math>', '</math>'), array('', '', '$$', '$$', '$$', '$$'), $this->whtml);
+		$this->whtml = str_replace(array('onerror=', 'onload='), '', $this->whtml);
+		
 		return $this->whtml;
 	}
 	
@@ -264,7 +281,11 @@ class theMark {
 				}
 			}
 			if($now == "\n") {
-				$result .= $this->lineParser($line);
+				if($line==""){
+					$result .= "<br>";
+				} else {
+					$result .= $this->lineParser($line);
+				}
 				$line = '';
 			} else {
 				$line.=$now;
@@ -536,8 +557,36 @@ class theMark {
 				$GLOBALS['tempLine'] .= $line;
 				$line = '';
 			} else {
-				$line = $GLOBALS['tempLine'].'<br>'.$line."<br>";
-				$result .= $this->formatParser($line);
+				$line1 = $GLOBALS['tempLine']."<br>".$line;
+				$line2 = $GLOBALS['tempLine']."\n".$line;
+				if(self::startsWithi($line2, '{{{#!wiki')) {
+					$line = $line2;
+					$html = explode("\n", $line);
+					$result = '<div '.substr(htmlspecialchars_decode($html[0]), 10).'>';
+					array_shift($html);
+					$result .= $this->formatParser(implode("\n", $html));
+					$result .= '</div>';
+				} else {
+					$line = $line1;
+					if(preg_match('/^{{{#(?:([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6})|([A-Za-z]+)) ((.|\n)*)}}}$/', $line, $color)) {
+						if(!empty($color[1])||!empty($color[2])){
+							$result .= '<span style="color: '.(empty($color[1])?$color[2]:'#'.$color[1]).'">'.$this->formatParser(str_replace("\n", "<br>", $color[3])).'</span>';
+							$line = '';
+							$GLOBALS['tempLine'] = null;
+						}
+					}
+					if(preg_match('/^{{{#(?:([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6})|([A-Za-z]+)),#(?:([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6})|([A-Za-z]+)) ((.|\n)*)}}}$/', $line, $color)) {
+						if(!empty($color[1])||!empty($color[2])||!empty($color[3])||!empty($color[4])){
+							$result .= '<span style="color: '.(empty($color[1])?$color[2]:'#'.$color[1]).'" data-dark="'.(empty($color[3])?$color[4]:'#'.$color[3]).'">'.$this->formatParser(str_replace("\n", "<br>", $color[5])).'</span>';
+							$line = '';
+							$GLOBALS['tempLine'] = null;
+						}
+					}
+					
+					if($GLOBALS['tempLine']!=null){
+						$result .= $this->formatParser($line);
+					}
+				}
 				$line = '';
 				$GLOBALS['tempLine'] = null;
 			}
@@ -566,17 +615,38 @@ class theMark {
 			}
 			$line = '';
 		}
+		if(self::startsWith($line, '=') && preg_match('/^(=+)# (.*) #(=+)[ ]*$/', $line, $match) && $match[1]===$match[3]) {
+			$level = strlen($match[1]);
+			$innertext = $this->formatParser($match[2]);
+			$id = $this->tocInsert($this->toc, $innertext, $level);
+			if($this->docfold){
+				if($this->istocTrue){
+					$result .= '</div>';
+				}
+				$result .= '<br><h'.$level.' id="s-'.$id.'" style="font-weight: normal; color: rgb(128, 128, 128); text-decoration: line-through;"><a class="foldtoc" style="float: left; font-family: Ionicons; font-size: .8em; line-height: 1.8em; text-align: center; margin: 0px 10px 0px 2px; color: #666; text-decoration: none; cursor: pointer;">&#xf35f;</a><a name="s-'.$id.'" href="#toc">'.$id.'</a>. '.$innertext.'</h'.$level.'><hr><div class="ss-'.str_replace(".", "_", $id).'" style="display:none;">';
+				$this->istocTrue = true;
+			} else {
+				$result .= '<br><h'.$level.' id="s-'.$id.'"><a name="s-'.$id.'" href="#toc">'.$id.'</a>. '.$innertext.'</h'.$level.'><hr>';
+			}
+			$line = '';
+		}
 		if($line == '----') {
 			$result .= '<hr>';
 			$line = '';
 		}
+		
+		if(self::startsWith($line, '&gt;')) {
+			$result .= '<blockquote class="wiki-quote">'.substr($this->formatParser(htmlspecialchars_decode($line)), 1).'</blockquote>';
+			$line = '';
+		}
+		
 		if(self::startsWith($line, '>')) {
 			$result .= '<blockquote class="wiki-quote">'.substr($this->formatParser($line), 1).'</blockquote>';
 			$line = '';
 		}
 		$line = $this->formatParser($line);
 		if($line != '') {
-			$result .= $line.'<br/>';
+			$result .= $line.'<br>';
 		}
 		return $result;
 	}
@@ -696,6 +766,8 @@ class theMark {
 		
 		$this->colbgcolor = array();
 		$this->colcolor = array();
+		$this->colDbgcolor = array();
+		$this->colDcolor = array();
 		for($i=$offset;$i<$len && ((!empty($caption) && $i === $offset) || (substr($text, $i, 2) === '||' && $i+=2));) {
 			if(!preg_match('/\|\|( *?(?:\n|$))/', $text, $match, PREG_OFFSET_CAPTURE, $i) || !isset($match[0]) || !isset($match[0][1]))
 				$rowend = -1;
@@ -756,15 +828,23 @@ class theMark {
 														case 'right': $table->style['float'] = 'right'; $table->attributes['class'].=' float'; break;
 													}
 													break;
-												case 'tablebgcolor': $color = explode(",", $tbprop[2]); $table->style['background-color'] = $color[0]; break;
-												case 'bgcolor': $color = explode(",", $tbprop[2]); $td->style['background-color'] = $color[0]; break;
-												case 'tablebordercolor': $color = explode(",", $tbprop[2]); $table->style['border-color'] = $color[0]; $table->style['border-style'] = 'solid'; break;
-												case 'bordercolor': $color = explode(",", $tbprop[2]); $td->style['border-color'] = $color[0]; $td->style['border-style'] = 'solid'; break;
+												case 'tablebgcolor': $color = explode(",", $tbprop[2]); $table->style['background-color'] = $color[0]; if($color[1]){ $table->attributes['data-dark'] = $color[1]; } break;
+												case 'bgcolor': $color = explode(",", $tbprop[2]); $td->style['background-color'] = $color[0]; if($color[1]){ $td->attributes['data-dark'] = $color[1]; } break;
+												case 'tablebordercolor': $color = explode(",", $tbprop[2]); $table->style['border-color'] = $color[0]; $table->style['border-style'] = 'solid'; if($color[1]){ $table->attributes['data-dark'] = $color[1]; } break;
+												case 'bordercolor': $color = explode(",", $tbprop[2]); $td->style['border-color'] = $color[0]; $td->style['border-style'] = 'solid'; if($color[1]){ $td->attributes['data-dark'] = $color[1]; } break;
 												case 'width': $td->style['width'] = is_numeric($tbprop[2])?$tbprop[2].'px':$tbprop[2]; break;
 												case 'tablewidth': $table->style['width'] = is_numeric($tbprop[2])?$tbprop[2].'px':$tbprop[2]; break;
 											}
 										}
 									}
+								} elseif(preg_match('/^(\^|v)\|([0-9]+)$/', $prop, $span)) {
+									if($span[1]=="^"){
+										$td->style['vertical-align'] = "top";
+									} else if($span[1]=="v"){
+										$td->style['vertical-align'] = "bottom";
+									}
+									$td->attributes['rowspan'] = $span[2];
+									break;
 								} elseif(preg_match('/^(\||\-)([0-9]+)$/', $prop, $span)) {
 									if($span[1] == '-') {
 										$td->attributes['colspan'] = $span[2];
@@ -779,15 +859,16 @@ class theMark {
 									break;
 								} elseif(preg_match('/#(?:([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6})|([A-Za-z]+)),#(?:([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6})|([A-Za-z]+))$/', $prop, $span)) {
 									$td->style['background-color'] = $span[1]?'#'.$span[1]:$span[2];
+									$td->attributes['data-dark'] = $span[3]?'#'.$span[3]:$span[4];
 									break;
 								} elseif(preg_match('/^([^=]+)=(?|"(.*)"|\'(.*)\'|(.*))$/', $prop, $htmlprop)) {
 									switch($htmlprop[1]) {
-										case 'rowbgcolor': $tr->style['background-color'] = $htmlprop[2]; break;
-										case 'colbgcolor': $td->style['background-color'] = $htmlprop[2]; $this->colbgcolor[0][] = $this->colCount; $this->colbgcolor[1][$this->colCount] = $htmlprop[2]; break;
-										case 'bgcolor': $td->style['background-color'] = $htmlprop[2]; break;
-										case 'rowcolor': $tr->style['color'] = $htmlprop[2]; break;
-										case 'colcolor': $td->style['color'] = $htmlprop[2]; $this->colcolor[0][] = $this->colCount; $this->colcolor[1][$this->colCount] = $htmlprop[2]; break;
-										case 'color': $td->style['color'] = $htmlprop[2]; break;
+										case 'rowbgcolor': $color = explode(",", $htmlprop[2]); $tr->style['background-color'] = $color[0]; if($color[1]){ $tr->attributes['data-dark'] = $color[1]; } break;
+										case 'colbgcolor': $color = explode(",", $htmlprop[2]); $td->style['background-color'] = $color[0]; $this->colbgcolor[0][] = $this->colCount; $this->colbgcolor[1][$this->colCount] = $color[0]; if($color[1]){ $td->attributes['data-dark'] = $color[1]; $this->colDbgcolor[1][$this->colCount] = $color[1]; } break;
+										case 'bgcolor': $color = explode(",", $htmlprop[2]); $td->style['background-color'] = $color[0]; if($color[1]){ $td->attributes['data-dark'] = $color[1]; } break;
+										case 'rowcolor': $color = explode(",", $htmlprop[2]); $tr->style['color'] = $color[0]; if($color[1]){ $tr->attributes['data-dark'] = $color[1]; } break;
+										case 'colcolor': $color = explode(",", $htmlprop[2]); $td->style['color'] = $color[0]; $this->colcolor[0][] = $this->colCount; $this->colcolor[1][$this->colCount] = $color[0]; if($color[1]){ $td->attributes['data-dark'] = $color[1]; $this->colDcolor[1][$this->colCount] = $color[1]; } break;
+										case 'color': $color = explode(",", $htmlprop[2]); $td->style['color'] = $color[0]; if($color[1]){ $td->attributes['data-dark'] = $color[1]; } break;
 										case 'width': $td->style['width'] = is_numeric($htmlprop[2])?$htmlprop[2].'px':$htmlprop[2]; break;
 										case 'height': $td->style['height'] = is_numeric($htmlprop[2])?$htmlprop[2].'px':$htmlprop[2]; break;
 										default: return $match[0];
@@ -821,8 +902,8 @@ class theMark {
 			if(substr_count($table->innerHTML, '{{{#!wiki')>0){
 				$temp = explode('{{{#!wiki', $table->innerHTML);
 				for($x=1;$x<=substr_count($table->innerHTML, '{{{#!wiki');$x++){
-					$style = htmlspecialchars_decode(explode('<br/>', explode('style=', $temp[$x])[1])[0]);
-					$table->innerHTML = str_replace(array('{{{#!wiki style='.explode('<br/>', explode('style=', $temp[$x])[1])[0], '}}}'), array('<div style='.$style.'>', '</div>'), $table->innerHTML);
+					$style = '"'.htmlspecialchars_decode(explode('<br>', explode('style=&quot;', $temp[$x])[1])[0]);
+					$table->innerHTML = str_replace(array('{{{#!wiki style=&quot;'.explode('<br>', explode('style=&quot;', $temp[$x])[1])[0], '}}}'), array('<div style='.$style.'>', '</div>'), $table->innerHTML);
 				}
 			}
 		}
@@ -1014,19 +1095,20 @@ class theMark {
 			case '목차': case 'tableofcontents': return $this->printToc();
 			case '각주': case 'footnote': return $this->printFootnote();
 			case 'pagecount':
-				if(!$mongo){
-					$mongo = mongoDBconnect();
-				}
-				$arr = $mongo->executeCommand('thewiki', new MongoDB\Driver\Command(["count"=>"docData".$GLOBALS['settings']['docVersion']]))->toArray();
-				return number_format($arr[0]->n);
+				return number_format(getpagecount());
 			default:
 				if(self::startsWithi(strtolower($text), 'include') && preg_match('/^include\((.+)\)$/i', $text, $include) && $include = $include[1]) {
+					if($this->threadMode)
+						return false;
 					if($this->included)
 						return ' ';
 					$include = explode(',', $include);
 					array_push($this->links, array('target'=>$include[0], 'type'=>'include'));
-					
-					$w = $include[0];
+					$this->includeCnt++;
+					if($this->includeCnt>20){
+						return ' ';
+					}
+					$w = trim($include[0]);
 					$ifNamespace = addslashes(reset(explode(':', $w)));
 					if(count(explode(':', $w))>1){
 						if(!$wiki_db){
@@ -1038,32 +1120,45 @@ class theMark {
 					}
 					if($findarr){
 						$namespace = $findarr[1];
-						$w = substr($w, strlen($findarr[3])+1);
+						$w = trim(substr($w, strlen($findarr[3])+1));
 					} else {
 						$namespace = 0;
 					}
 					
 					$_POST = array('namespace'=>$namespace, 'title'=>$w, 'ip'=>$_SERVER['HTTP_CF_CONNECTING_IP'], 'option'=>'original');
 					include $_SERVER['DOCUMENT_ROOT'].'/API.php';
-					
 					if($api_result->status!='success'){
 						return ' ';
 					} else {
 						$arr['text'] = $api_result->data;
-						unset($api_result);
 					}
 					
-					if(defined('isdeleted')&&$arr['text']==' '){
+					if($api_result->deleted){
 						return ' ';
 					}
 					
-					if(!empty($arr['text'])) {
+					if(!empty($arr['text'])) { 
 						if(!empty($include)){
+							preg_match_all('/\@(\w+)\=(\w+)\@/', $arr['text'], $inVal);
+							$isin = array();
 							foreach($include as $var) {
 								$var = explode('=', ltrim($var));
 								if(empty($var[1]))
 									$var[1]='';
+								$isin[$var[0]] = $var[1];
 								$arr['text'] = str_replace('@'.$var[0].'@', strip_tags(htmlspecialchars_decode($var[1]), '<b>'), $arr['text']);
+							}
+							foreach($inVal[0] as $k=>$v){
+								if(isset($isin[$inVal[1][$k]])){
+									$x = "";
+								} else {
+									$x = $inVal[2][$k];
+								}
+								$arr['text'] = str_replace($v, strip_tags(htmlspecialchars_decode($x), '<b>'), $arr['text']);
+							}
+							preg_match_all('/\@(\w+)\@/', $arr['text'], $inVal);
+							foreach($inVal[1] as $k=>$v){
+								$arr['text'] = str_replace('@'.$v.'@', '', $arr['text']);
 							}
 						}
 						$child = new theMark($arr['text']);
@@ -1294,24 +1389,15 @@ class theMark {
 					return '<math>'.$include.'</math>';
 				}
 				elseif(self::startsWithi(strtolower($text), 'pagecount') && preg_match('/^pagecount\((.+)\)$/i', $text, $include) && $include = $include[1]) {
-					if(!$mongo){
-						$mongo = mongoDBconnect();
-					}
 					switch($include){
-						case '문서':
-							$arr = $mongo->executeCommand('thewiki', new MongoDB\Driver\Command(["count"=>"docData".$GLOBALS['settings']['docVersion'], "query"=>["namespace"=>"0"]]))->toArray(); break;
-						case '틀':
-							$arr = $mongo->executeCommand('thewiki', new MongoDB\Driver\Command(["count"=>"docData".$GLOBALS['settings']['docVersion'], "query"=>["namespace"=>"1"]]))->toArray(); break;
-						case '분류':
-							$arr = $mongo->executeCommand('thewiki', new MongoDB\Driver\Command(["count"=>"category".$GLOBALS['settings']['docVersion']]))->toArray(); break;
-						case '파일':
-							$arr = $mongo->executeCommand('thewiki', new MongoDB\Driver\Command(["count"=>"imagesData", "query"=>["linkType"=>"0"]]))->toArray(); break;
-						case '나무위키':
-							$arr = $mongo->executeCommand('thewiki', new MongoDB\Driver\Command(["count"=>"docData".$GLOBALS['settings']['docVersion'], "query"=>["namespace"=>"6"]]))->toArray(); break;
-						default:
-							$arr = $mongo->executeCommand('thewiki', new MongoDB\Driver\Command(["count"=>"docData".$GLOBALS['settings']['docVersion']]))->toArray(); break;
+						case '문서': $arr = getpagecount(0); break;
+						case '틀': $arr = getpagecount(1); break;
+						case '분류': $arr = getpagecount(2); break;
+						case '파일': $arr = getpagecount(3); break;
+						case '나무위키': $arr = getpagecount(6); break;
+						default: $arr = getpagecount(); break;
 					}
-					return number_format($arr[0]->n);
+					return number_format($arr);
 				}
 				elseif(self::startsWith($text, '*') && preg_match('/^\*([^ ]*)([ ].+)?$/', $text, $note)) {
 					$notetext = !empty($note[2])?$this->formatParser($note[2]):'';
@@ -1334,7 +1420,7 @@ class theMark {
 			$temp = explode("\n", $text);
 			$openTag = trim(explode("#!folding", $temp[0])[1]);
 			array_shift($temp);
-			return '<dl class="wiki-folding"><dt><center>'.$openTag.'</center></dt><dd style="display:block;opacity:0;height:0;overflow:hidden;"><div class="wiki-table-wrap" style="overflow:initial;">'.$this->htmlScan(implode("\n", $temp)).'</div></dd></dl>';
+			return '<dl class="wiki-folding"><dt><center>'.$openTag.'</center></dt><dd class="start"><div class="wiki-table-wrap" style="overflow:initial;">'.$this->htmlScan(implode("\n", $temp)).'</div></dd></dl>';
 		}
 		if(self::startsWithi($text, '#!wiki')) {
 			$text = str_replace("<br>", "\n", $text);
@@ -1376,9 +1462,9 @@ class theMark {
 			return '<span style="color: '.(empty($color[1])?$color[2]:'#'.$color[1]).'">'.$this->formatParser(str_replace("\n", "<br>", $color[3])).'</span>';
 		}
 		if(preg_match('/^#(?:([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6})|([A-Za-z]+)),#(?:([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6})|([A-Za-z]+)) ((.|\n)*)$/', $text, $color)) {
-			if(empty($color[1]) && empty($color[2]))
+			if(empty($color[1]) && empty($color[2]) && empty($color[3]) && empty($color[4]))
 				return $text;
-			return '<span style="color: '.(empty($color[1])?$color[2]:'#'.$color[1]).'">'.$this->formatParser(str_replace("\n", "<br>", $color[5])).'</span>';
+			return '<span style="color: '.(empty($color[1])?$color[2]:'#'.$color[1]).'" data-dark="'.(empty($color[3])?$color[4]:'#'.$color[3]).'">'.$this->formatParser(str_replace("\n", "<br>", $color[5])).'</span>';
 		}
 		return '<pre><code class="plaintext">'.trim($text).'</code></pre>';
 	}
@@ -1537,12 +1623,21 @@ class theMark {
 		self::changeRefresh(14);
 		$result = getImageData($fileName);
 		
-		if($result->status=='success'){
-			return '<img data-original="'.$result->link.'"'.(!empty($paramtxt)?$paramtxt:'').' class="lazyimage" alt="'.$fileName.'">';
-		} elseif($result->status=='processing'){
-			return '[ No.'.$result->link.' ] 이미지 확인중';
-		} elseif($result->status=='fail'){
-			return '[ No.'.$result->link.' ] 이미지 준비중';
+		if($result->status=='success'||$result->status=='processing'){
+			if($this->threadMode){
+				if($result->animate){
+					return '<video src="'.$result->link.'.mp4"'.(!empty($paramtxt)?$paramtxt:'').' class="" alt="'.$fileName.'" autoplay muted loop></video>';
+				} else {
+					return '<img src="'.$result->link.'"'.(!empty($paramtxt)?$paramtxt:'').' class="" alt="'.$fileName.'">';
+				}
+			}
+			if($result->animate){
+				return '<video src="'.$result->link.'.mp4"'.(!empty($paramtxt)?$paramtxt:'').' class="" alt="'.$fileName.'" autoplay muted loop></video>';
+			} else {
+				return '<img data-original="'.$result->link.'"'.(!empty($paramtxt)?$paramtxt:'').' class="lazyimage" alt="'.$fileName.'">';
+			}
+		} elseif($result->status=='in queue'||$result->status=='fail'){
+			return '<a class="not-exist">'.$result->name.'</a>';
 		} else {
 			return ' ';
 		}
